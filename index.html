@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neighbourhood Link</title>
+  <meta name="description" content="Discover trusted local beauty and personal care professionals in your area." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✦</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'DM Sans',sans-serif;background:#FAF6F0;min-height:100vh;}
+    #loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#FAF6F0;z-index:9999;gap:16px;transition:opacity 0.4s;}
+    .ld-title{font-family:'Playfair Display',serif;font-size:26px;color:#3D2B1F;}
+    .ld-dot{color:#C9624F;}
+    .ld-sub{font-family:'DM Sans',sans-serif;font-size:13px;color:#7A6D63;}
+    .ld-spin{width:32px;height:32px;border:3px solid rgba(61,43,31,0.15);border-top-color:#8B6F47;border-radius:50%;animation:spin 0.8s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="ld-title">Neighbourhood<span class="ld-dot">.</span>Link</div>
+    <div class="ld-spin"></div>
+    <div class="ld-sub">Loading…</div>
+  </div>
+  <div id="root"></div>
+
+<script type="text/babel">
+const { useState, createContext, useContext, useCallback } = React;
+
+const FORMSPREE_URL = "https://formspree.io/f/mwvnjrba";
+
+async function submitToFormspree(data) {
+  try {
+    const res = await fetch(FORMSPREE_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json",Accept:"application/json"},
+      body:JSON.stringify(data),
+    });
+    if (res.ok) return {ok:true};
+    const json = await res.json().catch(()=>({}));
+    return {ok:false,error:json?.errors?.[0]?.message||"Submission failed."};
+  } catch { return {ok:false,error:"Network error."}; }
+}
+
+const STYLES = `
+  :root{--cream:#FAF6F0;--warm-white:#FFFEF9;--sand:#E8DDD0;--taupe:#C9B99A;--brown:#8B6F47;--espresso:#3D2B1F;--accent:#C9624F;--accent-light:#F0C5BC;--green:#5A7A5A;--green-light:#D4E5D4;--text:#2A2A2A;--text-muted:#7A6D63;--border:#DDD4C8;--shadow:0 2px 20px rgba(61,43,31,0.08);--shadow-lg:0 8px 40px rgba(61,43,31,0.12);--radius:12px;--radius-lg:20px;font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--text);}
+  body{min-height:100vh;}h1,h2,h3{font-family:'Playfair Display',serif;}
+  .navbar{background:var(--warm-white);border-bottom:1px solid var(--border);padding:0 24px;height:64px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;backdrop-filter:blur(8px);}
+  .logo{font-family:'Playfair Display',serif;font-size:22px;color:var(--espresso);cursor:pointer;display:flex;align-items:center;gap:8px;}
+  .logo-dot{color:var(--accent);}
+  .nav-actions{display:flex;gap:12px;align-items:center;}
+  .btn{padding:10px 20px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:all 0.2s;display:inline-flex;align-items:center;gap:6px;text-decoration:none;}
+  .btn:disabled{opacity:0.6;cursor:not-allowed;transform:none!important;}
+  .btn-primary{background:var(--espresso);color:var(--cream);}
+  .btn-primary:hover:not(:disabled){background:var(--brown);transform:translateY(-1px);}
+  .btn-secondary{background:transparent;color:var(--espresso);border:1.5px solid var(--border);}
+  .btn-secondary:hover:not(:disabled){border-color:var(--brown);background:var(--sand);}
+  .btn-accent{background:var(--accent);color:white;}
+  .btn-accent:hover:not(:disabled){background:#b5503e;transform:translateY(-1px);}
+  .btn-ghost{background:transparent;color:var(--text-muted);border:none;}
+  .btn-ghost:hover:not(:disabled){color:var(--espresso);background:var(--sand);}
+  .btn-whatsapp{background:#25D366;color:white;}
+  .btn-whatsapp:hover:not(:disabled){background:#1ebe5c;}
+  .btn-sm{padding:7px 14px;font-size:13px;}.btn-lg{padding:14px 28px;font-size:16px;}.btn-full{width:100%;justify-content:center;}
+  .input-wrap{display:flex;flex-direction:column;gap:6px;}
+  .input-label{font-size:13px;font-weight:500;color:var(--text-muted);letter-spacing:0.3px;}
+  .input{padding:12px 16px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:15px;background:var(--warm-white);color:var(--text);transition:border-color 0.2s;outline:none;width:100%;}
+  .input:focus{border-color:var(--brown);}.input::placeholder{color:var(--taupe);}.input.error-field{border-color:var(--accent);}
+  textarea.input{resize:vertical;min-height:100px;}select.input{cursor:pointer;}
+  .card{background:var(--warm-white);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);}
+  .provider-card{background:var(--warm-white);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow);transition:all 0.25s;cursor:pointer;}
+  .provider-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-3px);}
+  .provider-card-img{width:100%;height:180px;background:linear-gradient(135deg,var(--sand) 0%,var(--taupe) 100%);display:flex;align-items:center;justify-content:center;font-size:40px;}
+  .provider-card-body{padding:20px;}
+  .provider-card-name{font-family:'Playfair Display',serif;font-size:18px;margin-bottom:4px;}
+  .provider-card-meta{color:var(--text-muted);font-size:13px;margin-bottom:12px;display:flex;gap:12px;flex-wrap:wrap;}
+  .provider-card-price{font-size:15px;font-weight:600;color:var(--brown);}
+  .badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:500;gap:4px;}
+  .badge-brown{background:var(--sand);color:var(--brown);}
+  .hero{background:var(--espresso);padding:80px 24px 64px;text-align:center;position:relative;overflow:hidden;}
+  .hero::before{content:'';position:absolute;top:-60px;right:-60px;width:300px;height:300px;border-radius:50%;background:rgba(201,98,79,0.15);}
+  .hero::after{content:'';position:absolute;bottom:-80px;left:-40px;width:250px;height:250px;border-radius:50%;background:rgba(201,185,154,0.1);}
+  .hero-tag{display:inline-block;background:rgba(201,185,154,0.2);color:var(--taupe);padding:6px 16px;border-radius:20px;font-size:13px;letter-spacing:1px;text-transform:uppercase;margin-bottom:20px;}
+  .hero h1{font-size:clamp(36px,6vw,64px);color:var(--cream);line-height:1.15;margin-bottom:16px;}
+  .hero h1 em{color:var(--accent);font-style:italic;}
+  .hero-sub{color:var(--taupe);font-size:17px;margin-bottom:40px;max-width:500px;margin-left:auto;margin-right:auto;}
+  .hero-search{background:var(--warm-white);border-radius:var(--radius-lg);padding:8px;display:flex;gap:8px;max-width:640px;margin:0 auto;box-shadow:var(--shadow-lg);flex-wrap:wrap;}
+  .hero-search .input{border:none;background:transparent;flex:1;min-width:150px;}
+  .hero-search .input:focus{border:none;outline:none;}
+  .hero-divider{width:1px;background:var(--border);margin:8px 0;align-self:stretch;}
+  .category-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
+  .category-card{background:var(--warm-white);border:1.5px solid var(--border);border-radius:var(--radius);padding:20px 12px;text-align:center;cursor:pointer;transition:all 0.2s;font-size:13px;font-weight:500;color:var(--text-muted);}
+  .category-card:hover{border-color:var(--brown);background:var(--sand);color:var(--espresso);transform:translateY(-2px);}
+  .category-icon{font-size:28px;display:block;margin-bottom:8px;}
+  .provider-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px;}
+  .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+  .gallery-img{aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--sand);display:flex;align-items:center;justify-content:center;font-size:32px;cursor:pointer;transition:transform 0.2s;position:relative;}
+  .gallery-img img{width:100%;height:100%;object-fit:cover;}
+  .gallery-img:hover{transform:scale(1.03);}
+  .gallery-img .del-btn{position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;width:24px;height:24px;font-size:11px;cursor:pointer;display:none;align-items:center;justify-content:center;}
+  .gallery-img:hover .del-btn{display:flex;}
+  .profile-hero{background:linear-gradient(135deg,var(--espresso) 0%,var(--brown) 100%);padding:48px 24px;color:var(--cream);}
+  .profile-avatar{width:100px;height:100px;border-radius:50%;background:var(--taupe);display:flex;align-items:center;justify-content:center;font-size:36px;color:var(--espresso);border:4px solid var(--cream);flex-shrink:0;overflow:hidden;}
+  .profile-avatar img{width:100%;height:100%;object-fit:cover;}
+  .service-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);}
+  .service-row:last-child{border-bottom:none;}
+  .service-name{font-weight:500;}.service-price{font-weight:600;color:var(--brown);}
+  .dashboard-nav{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:32px;overflow-x:auto;}
+  .dash-tab{padding:12px 20px;font-weight:500;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all 0.2s;font-size:14px;}
+  .dash-tab.active{color:var(--espresso);border-bottom-color:var(--espresso);}
+  .auth-wrap{min-height:calc(100vh - 64px);display:flex;align-items:center;justify-content:center;padding:40px 24px;background:var(--cream);}
+  .auth-card{max-width:420px;width:100%;}
+  .page{max-width:1100px;margin:0 auto;padding:48px 24px;}
+  .filter-bar{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;background:var(--warm-white);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:32px;}
+  .filter-bar .input-wrap{flex:1;min-width:150px;}
+  .section-title{font-family:'Playfair Display',serif;font-size:26px;color:var(--espresso);margin-bottom:8px;}
+  .section-sub{color:var(--text-muted);font-size:15px;margin-bottom:28px;}
+  .section{margin-bottom:56px;}
+  .empty-state{text-align:center;padding:60px 24px;color:var(--text-muted);}
+  .empty-icon{font-size:48px;margin-bottom:16px;}
+  .toast{position:fixed;bottom:24px;right:24px;padding:14px 20px;border-radius:10px;font-size:14px;box-shadow:var(--shadow-lg);animation:slideUp 0.3s ease;z-index:999;max-width:320px;}
+  .toast.success{background:var(--espresso);color:var(--cream);}.toast.error{background:var(--accent);color:white;}
+  @keyframes slideUp{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
+  .success-banner{background:var(--green-light);color:var(--green);border:1px solid var(--green);border-radius:8px;padding:12px 16px;font-size:14px;text-align:center;}
+  .error-banner{background:var(--accent-light);color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:12px 16px;font-size:13px;}
+  .field-error{color:var(--accent);font-size:12px;margin-top:2px;}
+  .spinner{width:15px;height:15px;border:2px solid rgba(255,255,255,0.4);border-top-color:white;border-radius:50%;animation:spin 0.7s linear infinite;display:inline-block;}
+  .divider{height:1px;background:var(--border);margin:24px 0;}
+  .flex{display:flex;}.flex-col{display:flex;flex-direction:column;}
+  .gap-8{gap:8px;}.gap-12{gap:12px;}.gap-16{gap:16px;}.gap-24{gap:24px;}
+  .items-center{align-items:center;}.justify-between{justify-content:space-between;}.wrap{flex-wrap:wrap;}
+  .mb-4{margin-bottom:4px;}.mb-8{margin-bottom:8px;}.mb-16{margin-bottom:16px;}.mb-24{margin-bottom:24px;}.mb-32{margin-bottom:32px;}
+  .mt-8{margin-top:8px;}.mt-16{margin-top:16px;}
+  .text-sm{font-size:13px;}.text-muted{color:var(--text-muted);}.font-serif{font-family:'Playfair Display',serif;}
+  @media(max-width:600px){
+    .hero-search{flex-direction:column;}.hero-divider{display:none;}
+    .profile-hero-inner{flex-direction:column;}.nav-label{display:none;}
+    .sidebar-col{position:static!important;}
+  }
+`;
+
+const MOCK_PROVIDERS = [
+  {id:"1",userId:"u1",businessName:"Glow Studio by Amara",description:"Certified lash & brow artist with 6 years of experience. I work from my home studio in Brixton creating natural-looking volume lashes that enhance your beauty.",category:"Lash Artist",location:"Brixton, London",contactWhatsapp:"+447700900001",contactPhone:"+447700900001",emoji:"✨",services:[{id:"s1",name:"Classic Lash Set",price:65},{id:"s2",name:"Hybrid Lash Set",price:85},{id:"s3",name:"Volume Lash Set",price:100},{id:"s4",name:"Lash Infill",price:45}],portfolio:["💅","✨","👁️","🌟","💫","✨"],startingPrice:45},
+  {id:"2",userId:"u2",businessName:"Curl & Crown",description:"Specialist in natural hair, locs, braids and protective styles. 8 years transforming crowns in Peckham. Book me for wash days, big chops, and everything in between.",category:"Hairdresser",location:"Peckham, London",contactWhatsapp:"+447700900002",contactPhone:"+447700900002",emoji:"👑",services:[{id:"s5",name:"Wash & Style",price:55},{id:"s6",name:"Box Braids",price:120},{id:"s7",name:"Loc Maintenance",price:70},{id:"s8",name:"Big Chop + Style",price:80}],portfolio:["💇‍♀️","👑","🌺","💫","✂️","🌟"],startingPrice:55},
+  {id:"3",userId:"u3",businessName:"The Barber's Chair — Dele",description:"Fresh cuts, clean fades, precision line-ups. 10 years in the game. Walk-ins welcome Mon–Sat in Hackney.",category:"Barber",location:"Hackney, London",contactWhatsapp:"+447700900003",contactPhone:"+447700900003",emoji:"✂️",services:[{id:"s9",name:"Haircut + Line-up",price:30},{id:"s10",name:"Skin Fade",price:35},{id:"s11",name:"Beard Trim & Shape",price:15},{id:"s12",name:"Cut + Beard Combo",price:45}],portfolio:["✂️","💈","🪮","💇‍♂️","✨","🌟"],startingPrice:15},
+  {id:"4",userId:"u4",businessName:"Nails by Precious",description:"Luxury nail art & gel extensions. Custom designs that tell your story. Studio + home visits across South London.",category:"Nail Artist",location:"Clapham, London",contactWhatsapp:"+447700900004",contactPhone:"+447700900004",emoji:"💅",services:[{id:"s13",name:"Gel Manicure",price:40},{id:"s14",name:"Acrylic Full Set",price:65},{id:"s15",name:"Nail Art (per nail)",price:5},{id:"s16",name:"Gel Pedicure",price:50}],portfolio:["💅","🌸","✨","🎨","💎","🌺"],startingPrice:40},
+  {id:"5",userId:"u5",businessName:"Face By Kezia",description:"Professional makeup for weddings, events, photoshoots and everyday glam. Travel to you or visit my Islington studio. 7 years of experience.",category:"Makeup Artist",location:"Islington, London",contactWhatsapp:"+447700900005",contactPhone:"+447700900005",emoji:"💄",services:[{id:"s17",name:"Bridal Makeup",price:200},{id:"s18",name:"Event Makeup",price:100},{id:"s19",name:"Photoshoot Makeup",price:120},{id:"s20",name:"Makeup Lesson",price:80}],portfolio:["💄","✨","🌟","👁️","💋","🎨"],startingPrice:80},
+  {id:"6",userId:"u6",businessName:"Browhaus London",description:"Brow lamination, tinting and HD brows specialist. Camera-ready arches since 2019.",category:"Lash Artist",location:"Shoreditch, London",contactWhatsapp:"+447700900006",contactPhone:"+447700900006",emoji:"🌿",services:[{id:"s21",name:"Brow Lamination",price:55},{id:"s22",name:"HD Brows",price:45},{id:"s23",name:"Brow Tint",price:20}],portfolio:["🌿","✨","👁️","💫","🌱","✨"],startingPrice:20},
+];
+
+const CATEGORIES=[{label:"Lash Artist",icon:"👁️"},{label:"Hairdresser",icon:"💇‍♀️"},{label:"Barber",icon:"✂️"},{label:"Nail Artist",icon:"💅"},{label:"Makeup Artist",icon:"💄"},{label:"Brow Artist",icon:"🌿"}];
+
+const AuthCtx=createContext(null);
+const useAuth=()=>useContext(AuthCtx);
+
+function App(){
+  const[page,setPage]=useState("home");
+  const[user,setUser]=useState(null);
+  const[providers,setProviders]=useState(MOCK_PROVIDERS);
+  const[selectedProvider,setSelectedProvider]=useState(null);
+  const[searchQuery,setSearchQuery]=useState({service:"",location:""});
+  const[authMode,setAuthMode]=useState("login");
+  const[toast,setToast]=useState(null);
+  const showToast=useCallback((msg,type="success")=>{setToast({msg,type});setTimeout(()=>setToast(null),4000);},[]);
+  const navigate=(pg,data={})=>{if(pg==="profile"&&data.provider)setSelectedProvider(data.provider);setPage(pg);window.scrollTo(0,0);};
+  const handleSearch=(q)=>{setSearchQuery(q);navigate("search");};
+  const handleLogin=(u)=>{setUser(u);navigate(u.role==="provider"?"dashboard":"home");showToast(`Welcome back, ${u.name}! 👋`);};
+  const handleRegister=(u)=>{
+    const nu={...u,id:Date.now().toString()};setUser(nu);
+    if(u.role==="provider"){setProviders(p=>[...p,{id:nu.id,userId:nu.id,businessName:u.businessName||u.name+"'s Business",description:"",category:"Hairdresser",location:"",contactWhatsapp:"",contactPhone:"",emoji:"✨",services:[],portfolio:[],startingPrice:0}]);navigate("dashboard");}
+    else navigate("home");
+    showToast("Account created! Welcome to Neighbourhood Link 🎉");
+  };
+  const handleUpdateProfile=(upd)=>setProviders(prev=>prev.map(p=>p.userId===user?.id?{...p,...upd}:p));
+  const myProfile=providers.find(p=>p.userId===user?.id);
+  return(<>
+    <style>{STYLES}</style>
+    <AuthCtx.Provider value={{user,setUser,myProfile}}>
+      <Navbar navigate={navigate}/>
+      {page==="home"&&<HomePage navigate={navigate} onSearch={handleSearch} providers={providers} showToast={showToast}/>}
+      {page==="search"&&<SearchPage navigate={navigate} providers={providers} initial={searchQuery}/>}
+      {page==="profile"&&<ProfilePage provider={selectedProvider} navigate={navigate} showToast={showToast}/>}
+      {page==="dashboard"&&(user?.role==="provider"?<Dashboard navigate={navigate} profile={myProfile} onUpdate={handleUpdateProfile} showToast={showToast}/>:<AuthPage mode={authMode} setMode={setAuthMode} onLogin={handleLogin} onRegister={handleRegister} navigate={navigate}/>)}
+      {page==="auth"&&<AuthPage mode={authMode} setMode={setAuthMode} onLogin={handleLogin} onRegister={handleRegister} navigate={navigate}/>}
+    </AuthCtx.Provider>
+    {toast&&<div className={`toast ${toast.type}`}>{toast.msg}</div>}
+  </>);
+}
+
+function Navbar({navigate}){
+  const{user,setUser}=useAuth();
+  return(<nav className="navbar">
+    <div className="logo" onClick={()=>navigate("home")}>Neighbourhood<span className="logo-dot">.</span>Link</div>
+    <div className="nav-actions">
+      {user?(<>
+        {user.role==="provider"&&<button className="btn btn-secondary btn-sm" onClick={()=>navigate("dashboard")}><span className="nav-label">Dashboard</span> 🗂️</button>}
+        <button className="btn btn-ghost btn-sm" onClick={()=>{setUser(null);navigate("home");}}>Sign out</button>
+      </>):(<>
+        <button className="btn btn-ghost btn-sm" onClick={()=>navigate("auth")}>Sign in</button>
+        <button className="btn btn-primary btn-sm" onClick={()=>navigate("auth")}>Join free</button>
+      </>)}
+    </div>
+  </nav>);
+}
+
+function HomePage({navigate,onSearch,providers,showToast}){
+  const[service,setService]=useState("");
+  const[location,setLocation]=useState("");
+  const[searching,setSearching]=useState(false);
+  const handleSearch=async()=>{
+    const q={service:service.trim(),location:location.trim()};
+    if(q.service||q.location){setSearching(true);submitToFormspree({_subject:"🔍 Search on Neighbourhood Link",form_type:"search_intent",service_searched:q.service||"(any)",location_searched:q.location||"(any)"}).finally(()=>setSearching(false));}
+    onSearch(q);
+  };
+  const handleCategory=(cat)=>{submitToFormspree({_subject:"Category Click",form_type:"category_click",category:cat.label});onSearch({service:cat.label,location:""});};
+  return(<>
+    <section className="hero">
+      <div className="hero-tag">✦ Beauty &amp; Care Near You</div>
+      <h1>Find your <em>people.</em><br/>Book local talent.</h1>
+      <p className="hero-sub">Discover skilled barbers, nail artists, hairdressers and more — trusted professionals right in your neighbourhood.</p>
+      <div className="hero-search">
+        <input className="input" placeholder="e.g. lash artist, barber..." value={service} onChange={e=>setService(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSearch()}/>
+        <div className="hero-divider"/>
+        <input className="input" placeholder="City or area..." value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSearch()}/>
+        <button className="btn btn-accent" onClick={handleSearch} disabled={searching}>{searching?<span className="spinner"/>:"Search"}</button>
+      </div>
+    </section>
+    <div className="page">
+      <section className="section">
+        <h2 className="section-title">Browse by category</h2>
+        <p className="section-sub">What kind of service are you looking for?</p>
+        <div className="category-grid">{CATEGORIES.map(cat=>(<div key={cat.label} className="category-card" onClick={()=>handleCategory(cat)}><span className="category-icon">{cat.icon}</span>{cat.label}</div>))}</div>
+      </section>
+      <section className="section">
+        <div className="flex justify-between items-center mb-24">
+          <div><h2 className="section-title">Featured near you</h2><p className="section-sub" style={{marginBottom:0}}>Highly rated local professionals</p></div>
+          <button className="btn btn-secondary btn-sm" onClick={()=>onSearch({service:"",location:""})}>View all →</button>
+        </div>
+        <div className="provider-grid">{providers.slice(0,3).map(p=>(<ProviderCard key={p.id} provider={p} onClick={()=>navigate("profile",{provider:p})}/>))}</div>
+      </section>
+      <section style={{background:"var(--espresso)",borderRadius:"var(--radius-lg)",padding:"48px",textAlign:"center",color:"var(--cream)"}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:28,marginBottom:12}}>Are you a local professional?</h2>
+        <p style={{color:"var(--taupe)",marginBottom:28}}>Create your free profile and start getting discovered by clients in your area.</p>
+        <button className="btn btn-accent btn-lg" onClick={()=>navigate("auth")}>Create your profile — it's free</button>
+      </section>
+    </div>
+  </>);
+}
+
+function SearchPage({navigate,providers,initial}){
+  const[service,setService]=useState(initial.service||"");
+  const[location,setLocation]=useState(initial.location||"");
+  const[activeFilter,setActiveFilter]=useState(initial.service||"");
+  const filtered=providers.filter(p=>{
+    const ms=!activeFilter||p.category.toLowerCase().includes(activeFilter.toLowerCase())||p.businessName.toLowerCase().includes(activeFilter.toLowerCase())||p.services.some(s=>s.name.toLowerCase().includes(activeFilter.toLowerCase()));
+    const ml=!location||p.location.toLowerCase().includes(location.toLowerCase());
+    return ms&&ml;
+  });
+  const applyFilter=()=>setActiveFilter(service);
+  const clearFilter=()=>{setService("");setLocation("");setActiveFilter("");};
+  return(<div className="page">
+    <h1 className="section-title mb-8">Find a professional</h1>
+    <p className="text-muted mb-32">{filtered.length} provider{filtered.length!==1?"s":""} found</p>
+    <div className="filter-bar">
+      <div className="input-wrap" style={{flex:2}}><label className="input-label">Service or name</label><input className="input" placeholder="e.g. lash artist, braids..." value={service} onChange={e=>setService(e.target.value)} onKeyDown={e=>e.key==="Enter"&&applyFilter()}/></div>
+      <div className="input-wrap" style={{flex:1}}><label className="input-label">Location</label><input className="input" placeholder="City or area..." value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&applyFilter()}/></div>
+      <button className="btn btn-primary" onClick={applyFilter}>Filter</button>
+      <button className="btn btn-ghost" onClick={clearFilter}>Clear</button>
+    </div>
+    <div className="flex gap-8 wrap mb-32">{CATEGORIES.map(cat=>(<button key={cat.label} className={`btn btn-sm ${activeFilter===cat.label?"btn-primary":"btn-secondary"}`} onClick={()=>{setService(cat.label);setActiveFilter(cat.label);}}>{cat.icon} {cat.label}</button>))}</div>
+    {filtered.length===0?(<div className="empty-state"><div className="empty-icon">🔍</div><h3 className="font-serif" style={{marginBottom:8}}>No providers found</h3><p>Try a different term or clear the filters.</p></div>):(<div className="provider-grid">{filtered.map(p=><ProviderCard key={p.id} provider={p} onClick={()=>navigate("profile",{provider:p})}/>)}</div>)}
+  </div>);
+}
+
+function ProviderCard({provider,onClick}){
+  return(<div className="provider-card" onClick={onClick}>
+    <div className="provider-card-img">{provider.avatar?<img src={provider.avatar} alt={provider.businessName}/>:provider.emoji}</div>
+    <div className="provider-card-body">
+      <div className="flex justify-between items-center mb-4"><span className="badge badge-brown">{provider.category}</span><span className="provider-card-price">from £{provider.startingPrice}</span></div>
+      <h3 className="provider-card-name">{provider.businessName}</h3>
+      <div className="provider-card-meta"><span>📍 {provider.location}</span><span>🔧 {provider.services.length} services</span></div>
+      <button className="btn btn-secondary btn-sm btn-full mt-8" onClick={e=>{e.stopPropagation();onClick();}}>View profile →</button>
+    </div>
+  </div>);
+}
+
+function ProfilePage({provider,navigate,showToast}){
+  const[cf,setCf]=useState({name:"",email:"",message:""});
+  const[sending,setSending]=useState(false);
+  const[sent,setSent]=useState(false);
+  const[cfErrors,setCfErrors]=useState({});
+  const[cfServerErr,setCfServerErr]=useState("");
+  if(!provider)return<div className="page"><p className="text-muted">Provider not found.</p></div>;
+  const validateCf=()=>{const e={};if(!cf.name.trim())e.name="Your name is required.";if(!cf.email.trim()||!/\S+@\S+\.\S+/.test(cf.email))e.email="A valid email is required.";if(!cf.message.trim())e.message="Please write a message.";return e;};
+  const handleWhatsApp=()=>{
+    submitToFormspree({_subject:`💬 WhatsApp Tap — ${provider.businessName}`,form_type:"whatsapp_contact_intent",provider_name:provider.businessName,provider_id:provider.id,provider_location:provider.location});
+    const msg=encodeURIComponent(`Hi ${provider.businessName}! I found you on Neighbourhood Link and would like to enquire about your services.`);
+    window.open(`https://wa.me/${provider.contactWhatsapp?.replace(/\D/g,"")}?text=${msg}`,"_blank");
+  };
+  const handlePhone=()=>{submitToFormspree({_subject:`📞 Phone Tap — ${provider.businessName}`,form_type:"phone_contact_intent",provider_name:provider.businessName,provider_id:provider.id});window.location.href=`tel:${provider.contactPhone}`;};
+  const handleContactSubmit=async()=>{
+    setCfServerErr("");const e=validateCf();if(Object.keys(e).length){setCfErrors(e);return;}setCfErrors({});setSending(true);
+    const result=await submitToFormspree({_subject:`📩 Enquiry for ${provider.businessName} — Neighbourhood Link`,form_type:"provider_contact_message",provider_name:provider.businessName,provider_id:provider.id,provider_location:provider.location,client_name:cf.name,email:cf.email,message:cf.message});
+    setSending(false);
+    if(result.ok){setSent(true);setCf({name:"",email:"",message:""});showToast(`Message sent to ${provider.businessName}! ✉️`);}
+    else setCfServerErr(result.error||"Something went wrong.");
+  };
+  return(<>
+    <div className="profile-hero">
+      <div className="page" style={{padding:"0 24px"}}>
+        <button className="btn btn-ghost btn-sm" style={{color:"var(--taupe)",marginBottom:20}} onClick={()=>navigate("search")}>← Back to results</button>
+        <div className="flex gap-24 items-center profile-hero-inner">
+          <div className="profile-avatar">{provider.avatar?<img src={provider.avatar} alt={provider.businessName}/>:provider.emoji}</div>
+          <div style={{flex:1}}>
+            <span className="badge badge-brown" style={{marginBottom:8}}>{provider.category}</span>
+            <h1 style={{color:"var(--cream)",fontSize:"clamp(24px,4vw,36px)",marginBottom:8}}>{provider.businessName}</h1>
+            <p style={{color:"var(--taupe)"}}>📍 {provider.location}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div className="page">
+      <div style={{display:"grid",gridTemplateColumns:"1fr min(360px,100%)",gap:32,alignItems:"start"}}>
+        <div>
+          {provider.description&&(<section className="section"><h2 className="section-title mb-16">About</h2><p style={{lineHeight:1.7,color:"var(--text-muted)"}}>{provider.description}</p></section>)}
+          {provider.services.length>0&&(<section className="section"><h2 className="section-title mb-16">Services &amp; Prices</h2><div className="card" style={{padding:"8px 24px"}}>{provider.services.map(s=>(<div key={s.id} className="service-row"><span className="service-name">{s.name}</span><span className="service-price">£{s.price}</span></div>))}</div></section>)}
+          {provider.portfolio.length>0&&(<section className="section"><h2 className="section-title mb-16">Portfolio</h2><div className="gallery-grid">{provider.portfolio.map((img,i)=>(<div key={i} className="gallery-img">{typeof img==="string"&&img.length<=2?img:<img src={img} alt="work"/>}</div>))}</div></section>)}
+        </div>
+        <div style={{position:"sticky",top:80}} className="sidebar-col">
+          <div className="card mb-16">
+            <h3 className="font-serif" style={{fontSize:20,marginBottom:16}}>Contact {provider.businessName}</h3>
+            <div className="flex-col gap-12 mb-16">
+              <button className="btn btn-whatsapp btn-full" onClick={handleWhatsApp}>💬 WhatsApp</button>
+              <button className="btn btn-secondary btn-full" onClick={handlePhone}>📞 Call</button>
+            </div>
+            <div className="divider"/>
+            <p className="text-sm text-muted mb-4">📍 {provider.location}</p>
+            <p className="text-sm text-muted">From <strong style={{color:"var(--brown)"}}>£{provider.startingPrice}</strong></p>
+          </div>
+          <div className="card">
+            <h3 className="font-serif" style={{fontSize:18,marginBottom:16}}>Send a message</h3>
+            {sent?(<div className="success-banner">✅ Message sent! {provider.businessName} will be in touch soon.</div>):(<div className="flex-col gap-12">
+              <div className="input-wrap"><label className="input-label">Your name *</label><input className={`input${cfErrors.name?" error-field":""}`} placeholder="Jane Smith" value={cf.name} onChange={e=>{setCf({...cf,name:e.target.value});setCfErrors({...cfErrors,name:""});}}/>{cfErrors.name&&<span className="field-error">{cfErrors.name}</span>}</div>
+              <div className="input-wrap"><label className="input-label">Your email *</label><input className={`input${cfErrors.email?" error-field":""}`} type="email" placeholder="you@example.com" value={cf.email} onChange={e=>{setCf({...cf,email:e.target.value});setCfErrors({...cfErrors,email:""});}}/>{cfErrors.email&&<span className="field-error">{cfErrors.email}</span>}</div>
+              <div className="input-wrap"><label className="input-label">Message *</label><textarea className={`input${cfErrors.message?" error-field":""}`} placeholder={`Hi, I'd like to enquire about ${provider.businessName}...`} value={cf.message} style={{minHeight:80}} onChange={e=>{setCf({...cf,message:e.target.value});setCfErrors({...cfErrors,message:""});}}/>{cfErrors.message&&<span className="field-error">{cfErrors.message}</span>}</div>
+              {cfServerErr&&<div className="error-banner">{cfServerErr}</div>}
+              <button className="btn btn-primary btn-full" onClick={handleContactSubmit} disabled={sending}>{sending?<><span className="spinner"/> Sending…</>:"Send Message"}</button>
+            </div>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  </>);
+}
+
+function Dashboard({navigate,profile,onUpdate,showToast}){
+  const[tab,setTab]=useState("info");
+  const[form,setForm]=useState({...profile});
+  const[services,setServices]=useState(profile?.services||[]);
+  const[newSvc,setNewSvc]=useState({name:"",price:""});
+  const[portfolio,setPortfolio]=useState(profile?.portfolio||[]);
+  const[saving,setSaving]=useState(false);
+  const[svcAdding,setSvcAdding]=useState(false);
+  const[svcErrors,setSvcErrors]=useState({});
+  const[infoErrors,setInfoErrors]=useState({});
+  if(!profile)return(<div className="page"><div className="empty-state"><div className="empty-icon">🏗️</div><h3 className="font-serif" style={{marginBottom:8}}>Setting up your profile…</h3></div></div>);
+  const validateInfo=()=>{const e={};if(!form.businessName?.trim())e.businessName="Business name is required.";if(!form.location?.trim())e.location="Location is required.";return e;};
+  const saveInfo=async()=>{
+    const e=validateInfo();if(Object.keys(e).length){setInfoErrors(e);return;}setInfoErrors({});setSaving(true);
+    const sp=services.length>0?Math.min(...services.map(s=>Number(s.price)||0)):0;
+    const updated={...form,services,portfolio,startingPrice:sp};
+    const result=await submitToFormspree({_subject:`🏪 Profile Updated — ${form.businessName||"Provider"}`,form_type:"provider_profile_update",business_name:form.businessName||"",category:form.category||"",location:form.location||"",description:form.description||"",whatsapp:form.contactWhatsapp||"",phone:form.contactPhone||"",services_count:services.length,portfolio_count:portfolio.length});
+    setSaving(false);onUpdate(updated);
+    if(result.ok)showToast("Profile saved! ✅");else showToast("Saved locally — check your connection.","error");
+  };
+  const validateSvc=()=>{const e={};if(!newSvc.name.trim())e.name="Service name is required.";if(!newSvc.price||isNaN(Number(newSvc.price))||Number(newSvc.price)<0)e.price="Enter a valid price.";return e;};
+  const addService=async()=>{
+    const e=validateSvc();if(Object.keys(e).length){setSvcErrors(e);return;}setSvcErrors({});setSvcAdding(true);
+    const entry={id:Date.now().toString(),name:newSvc.name.trim(),price:Number(newSvc.price)};
+    const updated=[...services,entry];setServices(updated);setNewSvc({name:"",price:""});
+    await submitToFormspree({_subject:`➕ Service Added — ${profile.businessName}`,form_type:"service_added",business_name:profile.businessName,service_name:entry.name,service_price:`£${entry.price}`});
+    setSvcAdding(false);const sp=Math.min(...updated.map(s=>Number(s.price)||0));onUpdate({...form,services:updated,portfolio,startingPrice:sp});showToast(`"${entry.name}" added ✅`);
+  };
+  const deleteService=(id)=>{const updated=services.filter(s=>s.id!==id);setServices(updated);const sp=updated.length>0?Math.min(...updated.map(s=>Number(s.price)||0)):0;onUpdate({...form,services:updated,portfolio,startingPrice:sp});showToast("Service removed.");};
+  const addPortfolioItem=()=>{const p=["✨","💅","👑","🌺","💇‍♀️","🌟","💄","👁️","🌸","💫","🎨","💎"];const img=p[Math.floor(Math.random()*p.length)];const updated=[...portfolio,img];setPortfolio(updated);onUpdate({...form,services,portfolio:updated});showToast("Image added 🖼️");};
+  const removePortfolioItem=(i)=>{const updated=portfolio.filter((_,idx)=>idx!==i);setPortfolio(updated);onUpdate({...form,services,portfolio:updated});};
+  return(<div className="page">
+    <div className="flex justify-between items-center mb-32 wrap gap-12">
+      <div><h1 className="section-title mb-4">Provider Dashboard</h1><p className="text-muted">Manage your Neighbourhood Link presence</p></div>
+      <button className="btn btn-secondary btn-sm" onClick={()=>navigate("profile",{provider:{...profile,...form,services,portfolio}})}>Preview Profile →</button>
+    </div>
+    <div className="dashboard-nav">{[["info","🏪 Business Info"],["services","🔧 Services"],["portfolio","🖼️ Portfolio"]].map(([t,label])=>(<div key={t} className={`dash-tab${tab===t?" active":""}`} onClick={()=>setTab(t)}>{label}</div>))}</div>
+    {tab==="info"&&(<div style={{maxWidth:600}}><div className="flex-col gap-16">
+      <div className="input-wrap"><label className="input-label">Business Name *</label><input className={`input${infoErrors.businessName?" error-field":""}`} placeholder="Your business name" value={form.businessName||""} onChange={e=>{setForm({...form,businessName:e.target.value});setInfoErrors({...infoErrors,businessName:""});}}/>{infoErrors.businessName&&<span className="field-error">{infoErrors.businessName}</span>}</div>
+      <div className="input-wrap"><label className="input-label">Service Category *</label><select className="input" value={form.category||""} onChange={e=>setForm({...form,category:e.target.value})}>{CATEGORIES.map(c=><option key={c.label}>{c.label}</option>)}</select></div>
+      <div className="input-wrap"><label className="input-label">Location *</label><input className={`input${infoErrors.location?" error-field":""}`} placeholder="e.g. Brixton, London" value={form.location||""} onChange={e=>{setForm({...form,location:e.target.value});setInfoErrors({...infoErrors,location:""});}}/>{infoErrors.location&&<span className="field-error">{infoErrors.location}</span>}</div>
+      <div className="input-wrap"><label className="input-label">About Your Business</label><textarea className="input" placeholder="Tell clients about your experience…" value={form.description||""} onChange={e=>setForm({...form,description:e.target.value})}/></div>
+      <div className="input-wrap"><label className="input-label">WhatsApp Number</label><input className="input" placeholder="+44 7700 900000" value={form.contactWhatsapp||""} onChange={e=>setForm({...form,contactWhatsapp:e.target.value})}/></div>
+      <div className="input-wrap"><label className="input-label">Phone Number</label><input className="input" placeholder="+44 7700 900000" value={form.contactPhone||""} onChange={e=>setForm({...form,contactPhone:e.target.value})}/></div>
+      <button className="btn btn-primary" onClick={saveInfo} disabled={saving} style={{alignSelf:"flex-start"}}>{saving?<><span className="spinner"/> Saving…</>:"Save Changes"}</button>
+    </div></div>)}
+    {tab==="services"&&(<div style={{maxWidth:600}}>
+      <div className="card mb-24">{services.length===0?<p className="text-muted text-sm" style={{textAlign:"center",padding:"16px 0"}}>No services yet.</p>:services.map(s=>(<div key={s.id} className="service-row"><span className="service-name">{s.name}</span><div className="flex gap-12 items-center"><span className="service-price">£{s.price}</span><button className="btn btn-ghost btn-sm" style={{padding:"4px 8px"}} onClick={()=>deleteService(s.id)}>🗑️</button></div></div>))}</div>
+      <div className="card"><h3 className="font-serif" style={{fontSize:18,marginBottom:16}}>Add a service</h3>
+        <div className="flex gap-12 wrap">
+          <div className="input-wrap" style={{flex:2}}><label className="input-label">Service name *</label><input className={`input${svcErrors.name?" error-field":""}`} placeholder="e.g. Classic Lash Set" value={newSvc.name} onChange={e=>{setNewSvc({...newSvc,name:e.target.value});setSvcErrors({...svcErrors,name:""});}}/>{svcErrors.name&&<span className="field-error">{svcErrors.name}</span>}</div>
+          <div className="input-wrap" style={{flex:1}}><label className="input-label">Price (£) *</label><input className={`input${svcErrors.price?" error-field":""}`} type="number" min="0" placeholder="65" value={newSvc.price} onChange={e=>{setNewSvc({...newSvc,price:e.target.value});setSvcErrors({...svcErrors,price:""});}}/>{svcErrors.price&&<span className="field-error">{svcErrors.price}</span>}</div>
+        </div>
+        <button className="btn btn-primary mt-16" onClick={addService} disabled={svcAdding}>{svcAdding?<><span className="spinner"/> Adding…</>:"Add Service"}</button>
+      </div>
+    </div>)}
+    {tab==="portfolio"&&(<div>
+      <p className="text-muted mb-24">Click <strong>+ Add image</strong> to add work samples to your portfolio.</p>
+      <div className="gallery-grid mb-24">
+        {portfolio.map((item,i)=>(<div key={i} className="gallery-img">{typeof item==="string"&&item.length<=2?item:<img src={item} alt="work"/>}<button className="del-btn" onClick={()=>removePortfolioItem(i)}>✕</button></div>))}
+        <div className="gallery-img" style={{border:"2px dashed var(--border)",background:"transparent",flexDirection:"column",gap:8,color:"var(--text-muted)",fontSize:14}} onClick={addPortfolioItem}><span style={{fontSize:24}}>+</span><span>Add image</span></div>
+      </div>
+      <button className="btn btn-primary" onClick={saveInfo} disabled={saving}>{saving?<><span className="spinner"/> Saving…</>:"Save Portfolio"}</button>
+    </div>)}
+  </div>);
+}
+
+function AuthPage({mode,setMode,onLogin,onRegister,navigate}){
+  const[form,setForm]=useState({email:"",password:"",name:"",role:"client",businessName:""});
+  const[errors,setErrors]=useState({});
+  const[submitting,setSubmitting]=useState(false);
+  const[serverError,setServerError]=useState("");
+  const validate=()=>{
+    const e={};
+    if(!form.email.trim()||!/\S+@\S+\.\S+/.test(form.email))e.email="A valid email is required.";
+    if(!form.password||form.password.length<6)e.password="Password must be at least 6 characters.";
+    if(mode==="register"){if(!form.name.trim())e.name="Full name is required.";if(form.role==="provider"&&!form.businessName.trim())e.businessName="Business name is required.";}
+    return e;
+  };
+  const handleSubmit=async()=>{
+    setServerError("");const e=validate();if(Object.keys(e).length){setErrors(e);return;}setErrors({});setSubmitting(true);
+    if(mode==="register"){
+      const result=await submitToFormspree({_subject:`🎉 New ${form.role==="provider"?"Provider":"Client"} Registration — ${form.name}`,form_type:"registration",name:form.name,email:form.email,role:form.role,business_name:form.role==="provider"?form.businessName:"N/A"});
+      setSubmitting(false);if(!result.ok){setServerError(result.error||"Registration failed.");return;}onRegister({...form});
+    }else{
+      await submitToFormspree({_subject:`🔑 Login — ${form.email}`,form_type:"login",email:form.email});
+      setSubmitting(false);onLogin({id:"mock_"+Date.now(),email:form.email,name:form.email.split("@")[0],role:form.email.toLowerCase().includes("provider")?"provider":"client"});
+    }
+  };
+  const field=(key,type="text")=>({className:`input${errors[key]?" error-field":""}`,type,value:form[key],onChange:e=>{setForm({...form,[key]:e.target.value});setErrors({...errors,[key]:""});}});
+  return(<div className="auth-wrap"><div className="auth-card">
+    <div style={{textAlign:"center",marginBottom:32}}>
+      <div className="logo" style={{justifyContent:"center",marginBottom:8}}>Neighbourhood<span className="logo-dot">.</span>Link</div>
+      <h2 style={{fontSize:26}}>{mode==="login"?"Welcome back":"Join for free"}</h2>
+      <p className="text-muted text-sm mt-8">{mode==="login"?"Sign in to your account":"Create your account today"}</p>
+    </div>
+    <div className="card flex-col gap-16">
+      {mode==="register"&&(<>
+        <div className="input-wrap"><label className="input-label">Full Name *</label><input {...field("name")} placeholder="Your name"/>{errors.name&&<span className="field-error">{errors.name}</span>}</div>
+        <div className="input-wrap"><label className="input-label">I am a… *</label><select className="input" value={form.role} onChange={e=>{setForm({...form,role:e.target.value});setErrors({...errors,businessName:""});}}><option value="client">Client — looking for services</option><option value="provider">Service Provider — offering services</option></select></div>
+        {form.role==="provider"&&(<div className="input-wrap"><label className="input-label">Business Name *</label><input {...field("businessName")} placeholder="Your business name"/>{errors.businessName&&<span className="field-error">{errors.businessName}</span>}</div>)}
+      </>)}
+      <div className="input-wrap"><label className="input-label">Email Address *</label><input {...field("email","email")} placeholder="you@example.com"/>{errors.email&&<span className="field-error">{errors.email}</span>}</div>
+      <div className="input-wrap"><label className="input-label">Password *</label><input {...field("password","password")} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&handleSubmit()}/>{errors.password&&<span className="field-error">{errors.password}</span>}</div>
+      {serverError&&<div className="error-banner">{serverError}</div>}
+      <button className="btn btn-primary btn-full btn-lg" onClick={handleSubmit} disabled={submitting}>{submitting?<><span className="spinner"/> {mode==="login"?"Signing in…":"Creating account…"}</>:mode==="login"?"Sign In":"Create Account"}</button>
+      <p className="text-sm text-muted" style={{textAlign:"center"}}>{mode==="login"?"Don't have an account? ":"Already have an account? "}<span style={{color:"var(--brown)",cursor:"pointer",fontWeight:500}} onClick={()=>{setMode(mode==="login"?"register":"login");setErrors({});setServerError("");}}>{mode==="login"?"Sign up":"Sign in"}</span></p>
+      {mode==="login"&&(<p className="text-sm text-muted" style={{textAlign:"center",borderTop:"1px solid var(--border)",paddingTop:16}}>💡 Use an email with <strong>"provider"</strong> to demo the Provider Dashboard</p>)}
+    </div>
+  </div></div>);
+}
+
+const root=ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App/>);
+requestAnimationFrame(()=>{setTimeout(()=>{const el=document.getElementById("loading");if(el){el.style.opacity="0";setTimeout(()=>el.remove(),400);}},300);});
+</script>
+</body>
+</html>
