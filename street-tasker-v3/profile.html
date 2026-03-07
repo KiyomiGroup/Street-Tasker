@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Sign Up — Street Tasker</title>
+  <title>Profile — Street Tasker</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
   
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600&display=swap" rel="stylesheet">
@@ -326,98 +326,22 @@ select.form-input{cursor:pointer}
 </style>
 </head>
 <body>
-<div class="auth-page">
-  <!-- Left panel -->
-  <div class="auth-left">
-    <div class="hero-orb" style="width:400px;height:400px;background:var(--brand);opacity:.15;top:-100px;right:-100px;position:absolute"></div>
-    <div style="position:relative;z-index:2">
-      <a href="index.html" class="nav-logo" style="margin-bottom:52px;display:inline-flex">
-        <div class="nav-logo-mark">⚡</div>
-        <span style="color:white">Street</span><span style="color:var(--brand)">Tasker</span>
-      </a>
-      <h1 style="color:white;font-size:clamp(1.75rem,3.5vw,2.75rem);margin-bottom:16px">Join Street<br>Tasker today ⚡</h1>
-      <p style="color:rgba(255,255,255,.55);font-size:1rem;max-width:340px;line-height:1.7">Whether you need help or want to earn — Street Tasker connects your neighbourhood.</p>
-      <div style="margin-top:40px;display:flex;flex-direction:column;gap:14px">
-        <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px">
-          <div style="font-weight:700;color:white;margin-bottom:6px;font-family:var(--fd)">👤 As a Customer</div>
-          <p style="font-size:.875rem;color:rgba(255,255,255,.5);margin:0">Post tasks, hire trusted locals, get things done.</p>
-        </div>
-        <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px">
-          <div style="font-weight:700;color:white;margin-bottom:6px;font-family:var(--fd)">🔧 As a Tasker</div>
-          <p style="font-size:.875rem;color:rgba(255,255,255,.5);margin:0">Browse tasks, apply, and earn money in your area.</p>
-        </div>
-      </div>
-    </div>
-  </div>
+<nav class="navbar"><div class="navbar-inner">
+  <a href="index.html" class="nav-logo"><div class="nav-logo-mark">⚡</div>Street<span>Tasker</span></a>
+  <div class="nav-actions" id="navActions"></div>
+</div></nav>
 
-  <!-- Right panel -->
-  <div class="auth-right">
-    <div class="auth-box">
-      <div style="margin-bottom:28px">
-        <a href="index.html" class="nav-logo" style="display:inline-flex;margin-bottom:28px"><div class="nav-logo-mark">⚡</div>Street<span>Tasker</span></a>
-        <h2 style="margin-bottom:6px">Create your account</h2>
-        <p>Already have one? <a href="login.html" style="color:var(--brand);font-weight:600">Sign in →</a></p>
-      </div>
-
-      <!-- Role picker -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px" id="rolePicker">
-        <div class="role-opt active" data-role="customer" onclick="setRole('customer')" style="border:2px solid var(--brand);background:var(--brand-soft);border-radius:var(--r12);padding:16px;cursor:pointer;text-align:center;transition:all .18s">
-          <div style="font-size:24px;margin-bottom:6px">👤</div>
-          <div style="font-weight:700;font-size:.875rem;color:var(--brand)">Customer</div>
-          <div style="font-size:.75rem;color:var(--mist);margin-top:3px">I need help</div>
-        </div>
-        <div class="role-opt" data-role="tasker" onclick="setRole('tasker')" style="border:2px solid var(--border-md);border-radius:var(--r12);padding:16px;cursor:pointer;text-align:center;transition:all .18s">
-          <div style="font-size:24px;margin-bottom:6px">🔧</div>
-          <div style="font-weight:700;font-size:.875rem;color:var(--slate)">Tasker</div>
-          <div style="font-size:.75rem;color:var(--mist);margin-top:3px">I want to earn</div>
-        </div>
-      </div>
-      <input type="hidden" id="role" value="customer">
-
-      <div id="errorBanner" style="display:none;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--r8);padding:12px 16px;margin-bottom:16px">
-        <p id="errorMsg" style="color:var(--red);font-size:.875rem;margin:0"></p>
-      </div>
-
-      <form id="signupForm" style="display:flex;flex-direction:column;gap:14px">
-        <div class="form-group">
-          <label class="form-label">Full name</label>
-          <input id="name" type="text" class="form-input" placeholder="Your full name" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email address</label>
-          <input id="email" type="email" class="form-input" placeholder="you@example.com" required autocomplete="email">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Password</label>
-          <input id="password" type="password" class="form-input" placeholder="At least 6 characters" required minlength="6">
-          <span class="form-hint">Minimum 6 characters</span>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Your city / location</label>
-          <input id="location" type="text" class="form-input" placeholder="e.g. Ikeja, Lagos" required>
-        </div>
-
-        <!-- Skills (tasker only) -->
-        <div id="skillsSection" style="display:none">
-          <div class="form-group">
-            <label class="form-label">Your skills (select all that apply)</label>
-            <div id="skillChips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-              <!-- rendered by JS -->
-            </div>
-          </div>
-        </div>
-
-        <button type="submit" class="btn btn-brand btn-full btn-lg" id="submitBtn" style="margin-top:4px">
-          Create Account
-        </button>
-      </form>
-
-      <p style="text-align:center;color:var(--mist);font-size:.8125rem;margin-top:16px">
-        By signing up you agree to our <a href="#" style="color:var(--brand)">Terms</a> and <a href="#" style="color:var(--brand)">Privacy Policy</a>
-      </p>
-    </div>
-  </div>
+<div class="page-wrap" id="pageContent">
+  <div class="card skeleton" style="height:300px;border-radius:0;margin:0"></div>
 </div>
+
+<nav class="bottom-nav">
+  <a href="index.html" class="bn-item"><span class="bn-icon">🏠</span>Home</a>
+  <a href="browse-tasks.html" class="bn-item"><span class="bn-icon">🔍</span>Browse</a>
+  <button class="bn-fab" onclick="window.location.href='post-task.html'">+</button>
+  <a href="dashboard.html" class="bn-item"><span class="bn-icon">📊</span>Dashboard</a>
+  <a href="#" class="bn-item active"><span class="bn-icon">👤</span>Profile</a>
+</nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -735,78 +659,118 @@ window.Toast = Toast;
 
 </script>
 <script>
-Auth.redirectIfAuth();
+let profileUser = null, currentUser = null;
+const profileId = Utils.qs('id');
 
-const ALL_SKILLS = ['Cleaning','Delivery','Errands','Moving','Home Repairs','Gardening','Tech Help','Personal Help','Painting','Pet Care','Cooking','Tutoring'];
-let selectedSkills = [];
-
-function renderSkills() {
-  document.getElementById('skillChips').innerHTML = ALL_SKILLS.map(s => `
-    <span onclick="toggleSkill('${s}',this)" style="padding:6px 14px;border-radius:var(--rfull);font-size:.8125rem;font-weight:600;background:white;border:1.5px solid var(--border-md);color:var(--slate);cursor:pointer;transition:all .15s">${s}</span>`).join('');
-}
-
-function toggleSkill(s, el) {
-  if (selectedSkills.includes(s)) {
-    selectedSkills = selectedSkills.filter(x => x !== s);
-    el.style.cssText = 'padding:6px 14px;border-radius:var(--rfull);font-size:.8125rem;font-weight:600;background:white;border:1.5px solid var(--border-md);color:var(--slate);cursor:pointer;transition:all .15s';
+async function init() {
+  currentUser = await Auth.getUser();
+  const navEl = document.getElementById('navActions');
+  if (currentUser) {
+    const cp = await DB.getProfile(currentUser.id).catch(() => null);
+    navEl.innerHTML = `<div class="nav-user" onclick="window.location.href='dashboard.html'">${Utils.avatar(cp,'xs')}<span class="nav-user-name">${cp?.name||'Me'}</span></div>`;
   } else {
-    selectedSkills.push(s);
-    el.style.cssText = 'padding:6px 14px;border-radius:var(--rfull);font-size:.8125rem;font-weight:600;background:var(--brand);border:1.5px solid var(--brand);color:white;cursor:pointer;transition:all .15s';
+    navEl.innerHTML = `<a href="login.html" class="btn btn-outline btn-sm">Sign in</a><a href="signup.html" class="btn btn-brand btn-sm">Get started</a>`;
   }
-}
 
-function setRole(r) {
-  document.getElementById('role').value = r;
-  document.querySelectorAll('.role-opt').forEach(el => {
-    const active = el.dataset.role === r;
-    el.style.border = active ? '2px solid var(--brand)' : '2px solid var(--border-md)';
-    el.style.background = active ? 'var(--brand-soft)' : '';
-    el.querySelector('div:nth-child(2)').style.color = active ? 'var(--brand)' : 'var(--slate)';
-  });
-  document.getElementById('skillsSection').style.display = r === 'tasker' ? 'block' : 'none';
-}
-
-renderSkills();
-
-document.getElementById('signupForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = document.getElementById('submitBtn');
-  const errBanner = document.getElementById('errorBanner');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Creating account…';
-  errBanner.style.display = 'none';
-
-  const role = document.getElementById('role').value;
-  const name = document.getElementById('name').value.trim();
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  const location = document.getElementById('location').value.trim();
-
-  if (!name || !email || !password || !location) {
-    errBanner.style.display = 'block';
-    document.getElementById('errorMsg').textContent = 'Please fill in all required fields.';
-    btn.disabled = false; btn.textContent = 'Create Account'; return;
-  }
-  if (role === 'tasker' && selectedSkills.length === 0) {
-    errBanner.style.display = 'block';
-    document.getElementById('errorMsg').textContent = 'Please select at least one skill.';
-    btn.disabled = false; btn.textContent = 'Create Account'; return;
-  }
+  const id = profileId || currentUser?.id;
+  if (!id) { window.location.href = 'login.html'; return; }
 
   try {
-    await Auth.signUp({ email, password, name, location, role });
-    // Update skills if tasker
-    if (role === 'tasker' && selectedSkills.length) {
-      const user = await Auth.getUser();
-      if (user) await DB.updateProfile(user.id, { skills: selectedSkills });
-    }
-    window.location.href = 'dashboard.html';
-  } catch(err) {
-    errBanner.style.display = 'block';
-    document.getElementById('errorMsg').textContent = err.message || 'Sign up failed. Please try again.';
-    btn.disabled = false; btn.textContent = 'Create Account';
+    profileUser = await DB.getProfile(id);
+    const [reviews, tasks] = await Promise.all([
+      DB.getReviews(id),
+      DB.getTasks({ limit: 6 }).then(t => t.filter(tk => tk.created_by === id || tk.assigned_to === id)).catch(() => [])
+    ]);
+    render(profileUser, reviews, tasks);
+  } catch(e) {
+    document.getElementById('pageContent').innerHTML = '<div class="container" style="padding-top:60px"><div class="empty"><div class="empty-icon">❌</div><h3 class="empty-title">Profile not found</h3></div></div>';
   }
-});
+}
+
+function render(p, reviews, tasks) {
+  const isMe = currentUser?.id === p.id;
+  const avgRating = reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : '—';
+
+  document.getElementById('pageContent').innerHTML = `
+    <!-- Hero -->
+    <div style="background:var(--ink);padding:clamp(36px,5vw,64px) 0">
+      <div class="container" style="max-width:1000px">
+        <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+          ${Utils.avatar(p, 'xl')}
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px">
+              <h1 style="color:white;font-size:clamp(1.5rem,3vw,2rem)">${Utils.sanitize(p.name)}</h1>
+              ${p.verified ? '<span class="badge badge-teal">✓ Verified</span>' : ''}
+              ${p.banned ? '<span class="badge badge-red">⛔ Banned</span>' : ''}
+            </div>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px">
+              <span style="color:rgba(255,255,255,.6);font-size:.875rem;text-transform:capitalize">👤 ${p.role || 'Member'}</span>
+              ${p.location ? `<span style="color:rgba(255,255,255,.6);font-size:.875rem">📍 ${Utils.sanitize(p.location)}</span>` : ''}
+              <span style="color:rgba(255,255,255,.6);font-size:.875rem">✅ ${p.jobs_completed || 0} jobs completed</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+              <span class="stars">${Utils.stars(p.rating)}</span>
+              <span style="color:white;font-weight:700">${p.rating || 0}</span>
+              <span style="color:rgba(255,255,255,.4);font-size:.8125rem">(${reviews.length} reviews)</span>
+            </div>
+            ${p.bio ? `<p style="color:rgba(255,255,255,.6);max-width:560px;line-height:1.7;font-size:.9375rem">${Utils.sanitize(p.bio)}</p>` : ''}
+          </div>
+          ${isMe ? `<a href="dashboard.html" class="btn btn-outline" style="color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.25);flex-shrink:0">Edit Profile</a>` : ''}
+        </div>
+        ${(p.skills || []).length ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">${p.skills.map(s => `<span style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:var(--rfull);padding:5px 12px;font-size:.8125rem;font-weight:600;color:rgba(255,255,255,.8)">${Utils.sanitize(s)}</span>`).join('')}</div>` : ''}
+      </div>
+    </div>
+
+    <!-- Content -->
+    <div class="container" style="max-width:1000px;padding-top:36px;padding-bottom:80px">
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start">
+        <div>
+          <!-- Stats -->
+          <div class="grid-3" style="margin-bottom:24px">
+            <div class="card" style="text-align:center"><div style="font-family:var(--fd);font-size:2rem;font-weight:800;color:var(--brand)">${p.jobs_completed || 0}</div><div style="font-size:.875rem;color:var(--mist)">Jobs Done</div></div>
+            <div class="card" style="text-align:center"><div style="font-family:var(--fd);font-size:2rem;font-weight:800;color:var(--brand)">${avgRating}</div><div style="font-size:.875rem;color:var(--mist)">Avg Rating</div></div>
+            <div class="card" style="text-align:center"><div style="font-family:var(--fd);font-size:2rem;font-weight:800;color:var(--brand)">${reviews.length}</div><div style="font-size:.875rem;color:var(--mist)">Reviews</div></div>
+          </div>
+
+          <!-- Reviews -->
+          <div class="card" style="margin-bottom:20px">
+            <h3 style="margin-bottom:20px">Reviews (${reviews.length})</h3>
+            ${reviews.length ? reviews.map(r => `
+              <div style="padding:16px 0;border-bottom:1px solid var(--border)">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                  <div style="display:flex;align-items:center;gap:10px">
+                    ${Utils.avatar(r.reviewer,'sm')}
+                    <div>
+                      <div style="font-weight:700;font-size:.875rem">${Utils.sanitize(r.reviewer?.name || 'User')}</div>
+                      <div style="font-size:.75rem;color:var(--mist)">${Utils.timeAgo(r.created_at)}</div>
+                    </div>
+                  </div>
+                  <span class="stars">${Utils.stars(r.rating)}</span>
+                </div>
+                ${r.comment ? `<p style="font-size:.875rem;color:var(--slate);font-style:italic">"${Utils.sanitize(r.comment)}"</p>` : ''}
+              </div>`).join('') : '<div class="empty" style="padding:32px"><div class="empty-icon">⭐</div><p class="empty-desc">No reviews yet.</p></div>'}
+          </div>
+        </div>
+
+        <!-- Sidebar contact -->
+        <div style="position:sticky;top:calc(var(--nav-h)+20px)">
+          ${!isMe ? `<div class="card" style="margin-bottom:16px">
+            <h4 style="margin-bottom:14px">Contact ${Utils.sanitize(p.name.split(' ')[0])}</h4>
+            <a href="browse-tasks.html" class="btn btn-brand btn-full btn-lg">Post a Task →</a>
+            <p style="font-size:.75rem;color:var(--mist);text-align:center;margin-top:10px">Post a task and ${Utils.sanitize(p.name.split(' ')[0])} can apply</p>
+          </div>` : ''}
+          <div class="card">
+            <h4 style="margin-bottom:14px">Member since</h4>
+            <p style="font-size:.875rem">${new Date(p.created_at || Date.now()).toLocaleDateString('en-NG',{month:'long',year:'numeric'})}</p>
+            ${p.location ? `<div class="divider"></div><h4 style="margin-bottom:6px">Location</h4><p style="font-size:.875rem">📍 ${Utils.sanitize(p.location)}</p>` : ''}
+            ${(p.skills || []).length ? `<div class="divider"></div><h4 style="margin-bottom:10px">Skills</h4><div style="display:flex;gap:6px;flex-wrap:wrap">${p.skills.map(s=>`<span class="badge badge-gray">${Utils.sanitize(s)}</span>`).join('')}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+init();
 </script>
 </body>
 </html>

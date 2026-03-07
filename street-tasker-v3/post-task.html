@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Sign Up — Street Tasker</title>
+  <title>Post a Task — Street Tasker</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
   
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600&display=swap" rel="stylesheet">
@@ -326,95 +326,126 @@ select.form-input{cursor:pointer}
 </style>
 </head>
 <body>
-<div class="auth-page">
-  <!-- Left panel -->
-  <div class="auth-left">
-    <div class="hero-orb" style="width:400px;height:400px;background:var(--brand);opacity:.15;top:-100px;right:-100px;position:absolute"></div>
-    <div style="position:relative;z-index:2">
-      <a href="index.html" class="nav-logo" style="margin-bottom:52px;display:inline-flex">
-        <div class="nav-logo-mark">⚡</div>
-        <span style="color:white">Street</span><span style="color:var(--brand)">Tasker</span>
-      </a>
-      <h1 style="color:white;font-size:clamp(1.75rem,3.5vw,2.75rem);margin-bottom:16px">Join Street<br>Tasker today ⚡</h1>
-      <p style="color:rgba(255,255,255,.55);font-size:1rem;max-width:340px;line-height:1.7">Whether you need help or want to earn — Street Tasker connects your neighbourhood.</p>
-      <div style="margin-top:40px;display:flex;flex-direction:column;gap:14px">
-        <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px">
-          <div style="font-weight:700;color:white;margin-bottom:6px;font-family:var(--fd)">👤 As a Customer</div>
-          <p style="font-size:.875rem;color:rgba(255,255,255,.5);margin:0">Post tasks, hire trusted locals, get things done.</p>
-        </div>
-        <div style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:18px">
-          <div style="font-weight:700;color:white;margin-bottom:6px;font-family:var(--fd)">🔧 As a Tasker</div>
-          <p style="font-size:.875rem;color:rgba(255,255,255,.5);margin:0">Browse tasks, apply, and earn money in your area.</p>
-        </div>
-      </div>
+<nav class="navbar"><div class="navbar-inner">
+  <a href="index.html" class="nav-logo"><div class="nav-logo-mark">⚡</div>Street<span>Tasker</span></a>
+  <div class="nav-actions" id="navActions"></div>
+</div></nav>
+
+<div class="page-wrap">
+  <div class="container" style="max-width:760px;padding-top:48px;padding-bottom:80px">
+    <div style="margin-bottom:36px">
+      <a href="browse-tasks.html" style="color:var(--mist);font-size:.875rem;display:inline-flex;align-items:center;gap:6px;margin-bottom:16px">← Back to tasks</a>
+      <h1 style="font-size:clamp(1.5rem,3vw,2.25rem);margin-bottom:6px">Post a task</h1>
+      <p>Describe what you need done and let local taskers come to you.</p>
     </div>
-  </div>
 
-  <!-- Right panel -->
-  <div class="auth-right">
-    <div class="auth-box">
-      <div style="margin-bottom:28px">
-        <a href="index.html" class="nav-logo" style="display:inline-flex;margin-bottom:28px"><div class="nav-logo-mark">⚡</div>Street<span>Tasker</span></a>
-        <h2 style="margin-bottom:6px">Create your account</h2>
-        <p>Already have one? <a href="login.html" style="color:var(--brand);font-weight:600">Sign in →</a></p>
-      </div>
+    <!-- Step indicator -->
+    <div class="steps" style="margin-bottom:36px">
+      <div class="step-item"><div class="step-circle active" id="sc1">1</div><div class="step-line" id="sl1"></div></div>
+      <div class="step-item"><div class="step-circle" id="sc2">2</div><div class="step-line" id="sl2"></div></div>
+      <div class="step-item"><div class="step-circle" id="sc3">3</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:-28px;margin-bottom:32px;font-size:.75rem;font-weight:600">
+      <span id="sl1t" style="color:var(--brand)">Task Details</span>
+      <span id="sl2t" style="color:var(--mist)">Location & Budget</span>
+      <span id="sl3t" style="color:var(--mist)">Review & Post</span>
+    </div>
 
-      <!-- Role picker -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:24px" id="rolePicker">
-        <div class="role-opt active" data-role="customer" onclick="setRole('customer')" style="border:2px solid var(--brand);background:var(--brand-soft);border-radius:var(--r12);padding:16px;cursor:pointer;text-align:center;transition:all .18s">
-          <div style="font-size:24px;margin-bottom:6px">👤</div>
-          <div style="font-weight:700;font-size:.875rem;color:var(--brand)">Customer</div>
-          <div style="font-size:.75rem;color:var(--mist);margin-top:3px">I need help</div>
-        </div>
-        <div class="role-opt" data-role="tasker" onclick="setRole('tasker')" style="border:2px solid var(--border-md);border-radius:var(--r12);padding:16px;cursor:pointer;text-align:center;transition:all .18s">
-          <div style="font-size:24px;margin-bottom:6px">🔧</div>
-          <div style="font-weight:700;font-size:.875rem;color:var(--slate)">Tasker</div>
-          <div style="font-size:.75rem;color:var(--mist);margin-top:3px">I want to earn</div>
-        </div>
-      </div>
-      <input type="hidden" id="role" value="customer">
+    <div id="errorBanner" style="display:none;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--r8);padding:12px 16px;margin-bottom:16px">
+      <p id="errorMsg" style="color:var(--red);font-size:.875rem;margin:0"></p>
+    </div>
 
-      <div id="errorBanner" style="display:none;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--r8);padding:12px 16px;margin-bottom:16px">
-        <p id="errorMsg" style="color:var(--red);font-size:.875rem;margin:0"></p>
-      </div>
-
-      <form id="signupForm" style="display:flex;flex-direction:column;gap:14px">
-        <div class="form-group">
-          <label class="form-label">Full name</label>
-          <input id="name" type="text" class="form-input" placeholder="Your full name" required>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Email address</label>
-          <input id="email" type="email" class="form-input" placeholder="you@example.com" required autocomplete="email">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Password</label>
-          <input id="password" type="password" class="form-input" placeholder="At least 6 characters" required minlength="6">
-          <span class="form-hint">Minimum 6 characters</span>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Your city / location</label>
-          <input id="location" type="text" class="form-input" placeholder="e.g. Ikeja, Lagos" required>
-        </div>
-
-        <!-- Skills (tasker only) -->
-        <div id="skillsSection" style="display:none">
+    <form id="postForm">
+      <!-- STEP 1 -->
+      <div id="step1" class="card fade-in">
+        <h3 style="margin-bottom:20px">What do you need done?</h3>
+        <div style="display:flex;flex-direction:column;gap:18px">
           <div class="form-group">
-            <label class="form-label">Your skills (select all that apply)</label>
-            <div id="skillChips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
-              <!-- rendered by JS -->
+            <label class="form-label">Task title *</label>
+            <input id="title" type="text" class="form-input" placeholder="e.g. Deep clean 3-bedroom apartment" maxlength="120" required>
+            <span class="form-hint" id="titleCount">0/120 characters</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Category *</label>
+            <select id="category" class="form-input" required>
+              <option value="">Select a category</option>
+              <option>Cleaning</option><option>Delivery</option><option>Errands</option>
+              <option>Moving</option><option>Home Repairs</option><option>Gardening</option>
+              <option>Tech Help</option><option>Personal Help</option><option>Painting</option>
+              <option>Pet Care</option><option>Cooking</option><option>Tutoring</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description *</label>
+            <textarea id="description" class="form-input" placeholder="Describe the task in detail — what needs to be done, any special requirements, tools needed, etc." rows="5" required minlength="20"></textarea>
+            <span class="form-hint">More detail = better applicants</span>
+          </div>
+          <div>
+            <label class="form-label" style="display:block;margin-bottom:8px">Photos (optional)</label>
+            <div id="photoUploadZone" style="border:2px dashed var(--border-md);border-radius:var(--r12);padding:32px;text-align:center;cursor:pointer;transition:all .18s" onclick="document.getElementById('photoInput').click()" ondragover="this.style.borderColor='var(--brand)'" ondragleave="this.style.borderColor='var(--border-md)'">
+              <div style="font-size:32px;margin-bottom:8px">📸</div>
+              <div style="font-weight:600;margin-bottom:4px">Upload photos</div>
+              <div style="font-size:.8125rem;color:var(--mist)">Drag & drop or click — JPG, PNG up to 5MB each</div>
+              <input type="file" id="photoInput" accept="image/*" multiple style="display:none" onchange="handlePhotos(this.files)">
             </div>
+            <div id="photoPreview" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"></div>
           </div>
         </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:24px">
+          <button type="button" class="btn btn-brand btn-lg" onclick="goStep(2)">Next: Location & Budget →</button>
+        </div>
+      </div>
 
-        <button type="submit" class="btn btn-brand btn-full btn-lg" id="submitBtn" style="margin-top:4px">
-          Create Account
-        </button>
-      </form>
+      <!-- STEP 2 -->
+      <div id="step2" class="card fade-in" style="display:none">
+        <h3 style="margin-bottom:20px">Location & Budget</h3>
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="form-group">
+            <label class="form-label">Task location *</label>
+            <input id="location" type="text" class="form-input" placeholder="e.g. Ikeja, Lagos" required>
+            <span class="form-hint">Be specific so taskers nearby can find you</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Budget (₦) *</label>
+            <input id="budget" type="number" class="form-input" placeholder="e.g. 5000" min="100" required>
+            <span class="form-hint">Set a fair price. Taskers may offer a different price when applying.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Deadline (optional)</label>
+            <input id="deadline" type="date" class="form-input" min="">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:24px">
+          <button type="button" class="btn btn-outline btn-lg" onclick="goStep(1)">← Back</button>
+          <button type="button" class="btn btn-brand btn-lg" onclick="goStep(3)">Review Task →</button>
+        </div>
+      </div>
 
-      <p style="text-align:center;color:var(--mist);font-size:.8125rem;margin-top:16px">
-        By signing up you agree to our <a href="#" style="color:var(--brand)">Terms</a> and <a href="#" style="color:var(--brand)">Privacy Policy</a>
-      </p>
+      <!-- STEP 3 - Review -->
+      <div id="step3" class="card fade-in" style="display:none">
+        <h3 style="margin-bottom:20px">Review your task</h3>
+        <div id="reviewPanel" style="display:flex;flex-direction:column;gap:14px">
+          <!-- rendered by JS -->
+        </div>
+        <div style="margin-top:24px;padding:16px;background:var(--cloud);border-radius:var(--r12)">
+          <p style="font-size:.875rem;color:var(--slate);margin:0">✅ Your task will be visible to all taskers in your area. You can edit or cancel it at any time from your dashboard.</p>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:24px">
+          <button type="button" class="btn btn-outline btn-lg" onclick="goStep(2)">← Back</button>
+          <button type="submit" class="btn btn-brand btn-lg" id="submitBtn">Post Task →</button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Success -->
+    <div id="successState" style="display:none" class="card fade-in" style="text-align:center;padding:48px">
+      <div style="font-size:64px;margin-bottom:20px">🎉</div>
+      <h2 style="margin-bottom:10px">Task posted!</h2>
+      <p style="margin-bottom:28px">Your task is now live and taskers will start applying soon. You'll get notified for each application.</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="dashboard.html" class="btn btn-brand btn-lg">View Dashboard →</a>
+        <a href="browse-tasks.html" class="btn btn-outline btn-lg">Browse Other Tasks</a>
+      </div>
     </div>
   </div>
 </div>
@@ -735,78 +766,135 @@ window.Toast = Toast;
 
 </script>
 <script>
-Auth.redirectIfAuth();
+let uploadedPhotos = [];
+let currentUser = null;
 
-const ALL_SKILLS = ['Cleaning','Delivery','Errands','Moving','Home Repairs','Gardening','Tech Help','Personal Help','Painting','Pet Care','Cooking','Tutoring'];
-let selectedSkills = [];
+// Set min date to today
+document.getElementById('deadline').min = new Date().toISOString().split('T')[0];
 
-function renderSkills() {
-  document.getElementById('skillChips').innerHTML = ALL_SKILLS.map(s => `
-    <span onclick="toggleSkill('${s}',this)" style="padding:6px 14px;border-radius:var(--rfull);font-size:.8125rem;font-weight:600;background:white;border:1.5px solid var(--border-md);color:var(--slate);cursor:pointer;transition:all .15s">${s}</span>`).join('');
-}
+// Title counter
+document.getElementById('title').addEventListener('input', function() {
+  document.getElementById('titleCount').textContent = `${this.value.length}/120 characters`;
+});
 
-function toggleSkill(s, el) {
-  if (selectedSkills.includes(s)) {
-    selectedSkills = selectedSkills.filter(x => x !== s);
-    el.style.cssText = 'padding:6px 14px;border-radius:var(--rfull);font-size:.8125rem;font-weight:600;background:white;border:1.5px solid var(--border-md);color:var(--slate);cursor:pointer;transition:all .15s';
-  } else {
-    selectedSkills.push(s);
-    el.style.cssText = 'padding:6px 14px;border-radius:var(--rfull);font-size:.8125rem;font-weight:600;background:var(--brand);border:1.5px solid var(--brand);color:white;cursor:pointer;transition:all .15s';
+// Photo handling
+async function handlePhotos(files) {
+  const zone = document.getElementById('photoPreview');
+  for (const f of files) {
+    if (f.size > 5e6) { Toast.error('File too large (max 5MB)'); continue; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      uploadedPhotos.push({ file: f, preview: e.target.result });
+      zone.innerHTML += `<div style="position:relative"><img src="${e.target.result}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"><button type="button" onclick="removePhoto(${uploadedPhotos.length-1},this.parentNode)" style="position:absolute;top:-6px;right:-6px;background:var(--red);color:white;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer">✕</button></div>`;
+    };
+    reader.readAsDataURL(f);
   }
 }
 
-function setRole(r) {
-  document.getElementById('role').value = r;
-  document.querySelectorAll('.role-opt').forEach(el => {
-    const active = el.dataset.role === r;
-    el.style.border = active ? '2px solid var(--brand)' : '2px solid var(--border-md)';
-    el.style.background = active ? 'var(--brand-soft)' : '';
-    el.querySelector('div:nth-child(2)').style.color = active ? 'var(--brand)' : 'var(--slate)';
+function removePhoto(i, el) {
+  uploadedPhotos.splice(i, 1);
+  el.remove();
+}
+
+function goStep(n) {
+  // Validate current step
+  if (n === 2) {
+    if (!document.getElementById('title').value.trim()) return showErr('Please enter a task title.');
+    if (!document.getElementById('category').value) return showErr('Please select a category.');
+    if (!document.getElementById('description').value.trim() || document.getElementById('description').value.length < 20) return showErr('Description must be at least 20 characters.');
+  }
+  if (n === 3) {
+    if (!document.getElementById('location').value.trim()) return showErr('Please enter a location.');
+    if (!document.getElementById('budget').value || isNaN(document.getElementById('budget').value)) return showErr('Please enter a valid budget.');
+    buildReview();
+  }
+  hideErr();
+  [1,2,3].forEach(i => document.getElementById(`step${i}`).style.display = i === n ? 'block' : 'none');
+  // Update stepper
+  [1,2,3].forEach(i => {
+    const sc = document.getElementById(`sc${i}`);
+    if (!sc) return;
+    sc.className = `step-circle ${i < n ? 'done' : i === n ? 'active' : ''}`;
+    sc.textContent = i < n ? '✓' : i;
+    if (i < 3) document.getElementById(`sl${i}`)?.classList.toggle('done', i < n);
+    const lt = document.getElementById(`sl${i}t`);
+    if (lt) lt.style.color = i < n ? 'var(--teal)' : i === n ? 'var(--brand)' : 'var(--mist)';
   });
-  document.getElementById('skillsSection').style.display = r === 'tasker' ? 'block' : 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-renderSkills();
+function buildReview() {
+  const data = {
+    title: document.getElementById('title').value,
+    category: document.getElementById('category').value,
+    description: document.getElementById('description').value,
+    location: document.getElementById('location').value,
+    budget: document.getElementById('budget').value,
+    deadline: document.getElementById('deadline').value,
+  };
+  document.getElementById('reviewPanel').innerHTML = [
+    ['Task', data.title],['Category', data.category],
+    ['Description', data.description.substring(0,200) + (data.description.length > 200 ? '…' : '')],
+    ['Location', data.location],['Budget', Utils.fmt(data.budget)],
+    data.deadline ? ['Deadline', new Date(data.deadline).toLocaleDateString('en-NG',{weekday:'long',day:'numeric',month:'long'})] : null,
+  ].filter(Boolean).map(([k, v]) => `
+    <div style="display:flex;gap:16px;padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="width:100px;flex-shrink:0;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mist);padding-top:2px">${k}</div>
+      <div style="font-weight:500;color:var(--ink)">${Utils.sanitize(v)}</div>
+    </div>`).join('');
+}
 
-document.getElementById('signupForm').addEventListener('submit', async e => {
+function showErr(msg) {
+  document.getElementById('errorBanner').style.display = 'block';
+  document.getElementById('errorMsg').textContent = msg;
+}
+function hideErr() { document.getElementById('errorBanner').style.display = 'none'; }
+
+document.getElementById('postForm').addEventListener('submit', async e => {
   e.preventDefault();
+  if (!currentUser) { window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`; return; }
+
   const btn = document.getElementById('submitBtn');
-  const errBanner = document.getElementById('errorBanner');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Creating account…';
-  errBanner.style.display = 'none';
-
-  const role = document.getElementById('role').value;
-  const name = document.getElementById('name').value.trim();
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  const location = document.getElementById('location').value.trim();
-
-  if (!name || !email || !password || !location) {
-    errBanner.style.display = 'block';
-    document.getElementById('errorMsg').textContent = 'Please fill in all required fields.';
-    btn.disabled = false; btn.textContent = 'Create Account'; return;
-  }
-  if (role === 'tasker' && selectedSkills.length === 0) {
-    errBanner.style.display = 'block';
-    document.getElementById('errorMsg').textContent = 'Please select at least one skill.';
-    btn.disabled = false; btn.textContent = 'Create Account'; return;
-  }
+  btn.innerHTML = '<span class="spinner"></span> Posting…';
 
   try {
-    await Auth.signUp({ email, password, name, location, role });
-    // Update skills if tasker
-    if (role === 'tasker' && selectedSkills.length) {
-      const user = await Auth.getUser();
-      if (user) await DB.updateProfile(user.id, { skills: selectedSkills });
+    // Upload photos
+    const photoUrls = [];
+    for (const p of uploadedPhotos) {
+      try { photoUrls.push(await DB.uploadTaskPhoto(p.file)); } catch {}
     }
-    window.location.href = 'dashboard.html';
+
+    const task = {
+      title: document.getElementById('title').value.trim(),
+      category: document.getElementById('category').value,
+      description: document.getElementById('description').value.trim(),
+      location: document.getElementById('location').value.trim(),
+      budget: parseFloat(document.getElementById('budget').value),
+      deadline: document.getElementById('deadline').value || null,
+      created_by: currentUser.id,
+      status: 'open',
+      photos: photoUrls,
+    };
+
+    await DB.createTask(task);
+    document.getElementById('postForm').style.display = 'none';
+    document.getElementById('successState').style.display = 'block';
+    Toast.success('Task posted successfully!');
+
   } catch(err) {
-    errBanner.style.display = 'block';
-    document.getElementById('errorMsg').textContent = err.message || 'Sign up failed. Please try again.';
-    btn.disabled = false; btn.textContent = 'Create Account';
+    showErr(err.message || 'Failed to post task. Please try again.');
+    btn.disabled = false; btn.textContent = 'Post Task →';
   }
 });
+
+async function init() {
+  currentUser = await Auth.requireAuth();
+  if (!currentUser) return;
+  const p = await DB.getProfile(currentUser.id).catch(() => null);
+  document.getElementById('navActions').innerHTML = `<div class="nav-user" onclick="window.location.href='dashboard.html'">${Utils.avatar(p,'xs')}<span class="nav-user-name">${p?.name||'Me'}</span></div>`;
+}
+init();
 </script>
 </body>
 </html>
