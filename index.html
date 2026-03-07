@@ -16,435 +16,517 @@
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
     body{font-family:'Plus Jakarta Sans',sans-serif;background:#F5F3EF;min-height:100vh;}
     #loading{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0A0F1E;z-index:9999;gap:16px;transition:opacity 0.5s;}
-    .ld-title{font-family:'Fraunces',serif;font-size:28px;color:#fff;letter-spacing:-0.5px;}
+    .ld-title{font-family:'Fraunces',serif;font-size:28px;color:#fff;}
     .ld-title span{color:#FF6B35;}
     .ld-bar{width:160px;height:3px;background:rgba(255,255,255,0.1);border-radius:99px;overflow:hidden;}
-    .ld-fill{height:100%;background:linear-gradient(90deg,#FF6B35,#FFB347);animation:fill 1.2s ease forwards;}
-    @keyframes fill{from{width:0}to{width:100%}}
+    .ld-fill{height:100%;background:linear-gradient(90deg,#FF6B35,#FFB347);animation:ldfill 1.4s ease forwards;}
+    @keyframes ldfill{from{width:0}to{width:100%}}
   </style>
 </head>
 <body>
-  <div id="loading">
-    <div class="ld-title">Street<span>Tasker</span></div>
-    <div class="ld-bar"><div class="ld-fill"></div></div>
-  </div>
+  <div id="loading"><div class="ld-title">Street<span>Tasker</span></div><div class="ld-bar"><div class="ld-fill"></div></div></div>
   <div id="root"></div>
-
 <script type="text/babel">
 const { useState, useEffect, useRef, createContext, useContext, useCallback } = React;
 
-// ─── FORMSPREE ────────────────────────────────────────────────────────────────
+// ─── FORMSPREE ───────────────────────────────────────────────────────────────
 const FORMSPREE_URL = "https://formspree.io/f/mwvnjrba";
-async function submitToFormspree(data) {
+async function postForm(data) {
   try {
-    const res = await fetch(FORMSPREE_URL,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify(data)});
-    if(res.ok) return {ok:true};
-    const json = await res.json().catch(()=>({}));
-    return {ok:false,error:json?.errors?.[0]?.message||"Submission failed."};
+    const r = await fetch(FORMSPREE_URL,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify(data)});
+    if(r.ok) return {ok:true};
+    const j = await r.json().catch(()=>({}));
+    return {ok:false,error:j?.errors?.[0]?.message||"Failed."};
   } catch { return {ok:false,error:"Network error."}; }
 }
 
-// ─── DESIGN SYSTEM ────────────────────────────────────────────────────────────
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const fmt = n => "₦" + Number(n).toLocaleString("en-NG");
+const readFile = file => new Promise(res => { const r=new FileReader(); r.onload=e=>res(e.target.result); r.readAsDataURL(file); });
+
+// ─── SUBSCRIPTIONS ───────────────────────────────────────────────────────────
+const PLANS = [
+  { id:"free",   name:"Free",       price:0,        period:"",       bookings:5,    badge:"",          color:"#8896A8", features:["5 client bookings","Basic profile","Listed in search","Community support"] },
+  { id:"pro",    name:"Pro",        price:9900,     period:"/month", bookings:100,  badge:"Popular",   color:"#0FA89A", features:["100 client bookings/month","Priority listing","Analytics dashboard","Email support","Portfolio gallery"] },
+  { id:"elite",  name:"Elite",      price:24900,    period:"/month", bookings:9999, badge:"Best Value", color:"#FF6B35", features:["Unlimited bookings","Featured at top of homepage","Verified Elite badge","Instagram-style posts","Dedicated support","Advanced analytics","Promoted in search"] },
+];
+
+// ─── CATEGORY IMAGES (SVG illustrations) ────────────────────────────────────
+const CAT_IMGS = {
+  "Barber": `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="160" fill="#1a1a2e"/><rect x="60" y="30" width="80" height="90" rx="8" fill="#16213e"/><circle cx="100" cy="55" r="20" fill="#e8b89a"/><rect x="85" y="75" width="30" height="40" rx="4" fill="#0f3460"/><rect x="75" y="115" width="50" height="8" rx="3" fill="#533483"/><path d="M80 55 Q100 35 120 55" stroke="#2c1810" stroke-width="3" fill="none"/><line x1="130" y1="40" x2="145" y2="65" stroke="#c0c0c0" stroke-width="2"/><line x1="133" y1="38" x2="148" y2="63" stroke="#c0c0c0" stroke-width="2"/><circle cx="100" cy="18" r="6" fill="#FF6B35"/><text x="100" y="148" text-anchor="middle" fill="white" font-size="11" font-family="sans-serif">Barber</text></svg>`,
+  "Cleaner": `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="160" fill="#0d3b2e"/><rect x="20" y="60" width="160" height="80" rx="6" fill="#145a32"/><circle cx="60" cy="50" r="18" fill="#f0c27f"/><rect x="50" y="68" width="20" height="35" fill="#3498db"/><path d="M40 103 Q60 95 80 103" stroke="#2980b9" stroke-width="3" fill="none"/><rect x="110" y="40" width="12" height="60" rx="3" fill="#7f8c8d"/><ellipse cx="116" cy="40" rx="18" ry="8" fill="#95a5a6"/><path d="M104 60 Q116 55 128 60 Q116 80 104 60" fill="#3498db" opacity="0.6"/><circle cx="155" cy="85" r="15" fill="rgba(255,255,255,0.1)"/><circle cx="145" cy="70" r="10" fill="rgba(255,255,255,0.08)"/><text x="100" y="150" text-anchor="middle" fill="white" font-size="11" font-family="sans-serif">Cleaner</text></svg>`,
+  "Plumber": `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="160" fill="#1a2634"/><circle cx="100" cy="60" r="22" fill="#d4956a"/><rect x="88" y="80" width="24" height="40" rx="4" fill="#2c3e50"/><path d="M60 90 L80 90 L80 100 L60 100 Z" fill="#7f8c8d"/><path d="M55 95 Q58 95 60 90" stroke="#7f8c8d" stroke-width="4" fill="none"/><path d="M55 95 Q58 95 60 100" stroke="#7f8c8d" stroke-width="4" fill="none"/><rect x="120" y="85" width="40" height="10" rx="3" fill="#e67e22"/><rect x="155" y="80" width="8" height="20" rx="2" fill="#d35400"/><path d="M80 120 Q100 112 120 120" stroke="#2980b9" stroke-width="3" fill="none"/><circle cx="40" cy="130" r="8" fill="#3498db" opacity="0.4"/><circle cx="165" cy="125" r="6" fill="#3498db" opacity="0.3"/><text x="100" y="150" text-anchor="middle" fill="white" font-size="11" font-family="sans-serif">Plumber</text></svg>`,
+  "Electrician": `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="160" fill="#1c1c0a"/><circle cx="100" cy="55" r="22" fill="#e8c07a"/><rect x="88" y="75" width="24" height="42" rx="4" fill="#2c2c2c"/><polygon points="108,20 96,45 104,45 92,75 112,45 103,45" fill="#FFD700"/><rect x="50" y="85" width="30" height="6" rx="2" fill="#e74c3c"/><rect x="50" y="95" width="30" height="6" rx="2" fill="#2ecc71"/><rect x="120" y="85" width="30" height="6" rx="2" fill="#3498db"/><circle cx="160" cy="40" r="12" fill="#FFD700" opacity="0.3"/><circle cx="160" cy="40" r="6" fill="#FFD700" opacity="0.6"/><text x="100" y="150" text-anchor="middle" fill="white" font-size="11" font-family="sans-serif">Electrician</text></svg>`,
+  "Nail Artist": `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="160" fill="#2d0a2e"/><circle cx="100" cy="55" r="20" fill="#f5c6a0"/><rect x="89" y="73" width="22" height="38" rx="4" fill="#8e44ad"/><rect x="75" y="90" width="10" height="18" rx="3" fill="#f5c6a0"/><rect x="63" y="92" width="10" height="16" rx="3" fill="#f5c6a0"/><rect x="115" y="90" width="10" height="18" rx="3" fill="#f5c6a0"/><rect x="127" y="92" width="10" height="16" rx="3" fill="#f5c6a0"/><rect x="75" y="104" width="10" height="6" rx="2" fill="#ff69b4"/><rect x="63" y="104" width="10" height="5" rx="2" fill="#ff1493"/><rect x="115" y="104" width="10" height="6" rx="2" fill="#ff69b4"/><rect x="127" y="104" width="10" height="5" rx="2" fill="#9b59b6"/><circle cx="145" cy="35" r="8" fill="#ff69b4" opacity="0.6"/><circle cx="55" cy="45" r="6" fill="#9b59b6" opacity="0.5"/><text x="100" y="150" text-anchor="middle" fill="white" font-size="11" font-family="sans-serif">Nail Artist</text></svg>`,
+  "Hairdresser": `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="160" fill="#1a0a2e"/><circle cx="100" cy="50" r="22" fill="#e8b89a"/><path d="M78 50 Q78 25 100 22 Q122 25 122 50 Q118 35 100 33 Q82 35 78 50Z" fill="#2c1810"/><path d="M78 50 Q75 60 78 68 Q85 65 88 60" fill="#2c1810"/><path d="M122 50 Q125 60 122 68 Q115 65 112 60" fill="#2c1810"/><rect x="88" y="70" width="24" height="40" rx="4" fill="#8e44ad"/><rect x="130" y="50" width="4" height="30" rx="2" fill="#c0c0c0"/><circle cx="132" cy="48" r="4" fill="#c0c0c0"/><path d="M134 58 L145 52 L145 56 L134 62" fill="#c0c0c0"/><text x="100" y="150" text-anchor="middle" fill="white" font-size="11" font-family="sans-serif">Hairdresser</text></svg>`,
+  "Tutor": `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="160" fill="#0a1628"/><rect x="30" y="40" width="100" height="70" rx="4" fill="#1a3a5c"/><rect x="35" y="45" width="90" height="60" rx="2" fill="#ecf0f1"/><line x1="35" y1="58" x2="125" y2="58" stroke="#bdc3c7" stroke-width="1"/><line x1="35" y1="68" x2="125" y2="68" stroke="#bdc3c7" stroke-width="1"/><line x1="35" y1="78" x2="125" y2="78" stroke="#bdc3c7" stroke-width="1"/><line x1="35" y1="88" x2="125" y2="88" stroke="#bdc3c7" stroke-width="1"/><rect x="37" y="46" width="60" height="4" rx="1" fill="#3498db"/><rect x="37" y="60" width="40" height="3" rx="1" fill="#95a5a6"/><rect x="37" y="70" width="50" height="3" rx="1" fill="#95a5a6"/><circle cx="155" cy="55" r="20" fill="#f0c27f"/><path d="M140 55 Q155 40 170 55 Q165 50 155 48 Q145 50 140 55Z" fill="#2c1810"/><rect x="145" y="73" width="20" height="30" rx="4" fill="#e74c3c"/><text x="100" y="150" text-anchor="middle" fill="white" font-size="11" font-family="sans-serif">Tutor</text></svg>`,
+  "Lash Artist": `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="160" fill="#0d0d1a"/><circle cx="100" cy="60" r="25" fill="#f0c8a0"/><ellipse cx="100" cy="60" rx="15" ry="8" fill="white"/><ellipse cx="100" cy="60" rx="10" ry="6" fill="#3d2b1f"/><ellipse cx="100" cy="60" rx="5" ry="4" fill="#1a0a05"/><path d="M85 52 Q87 44 89 48" stroke="#1a0a05" stroke-width="1.5" fill="none"/><path d="M88 50 Q91 42 92 46" stroke="#1a0a05" stroke-width="1.5" fill="none"/><path d="M92 49 Q95 41 96 45" stroke="#1a0a05" stroke-width="1.5" fill="none"/><path d="M96 49 Q100 41 100 45" stroke="#1a0a05" stroke-width="1.5" fill="none"/><path d="M104 49 Q108 41 107 45" stroke="#1a0a05" stroke-width="1.5" fill="none"/><path d="M108 50 Q112 42 111 46" stroke="#1a0a05" stroke-width="1.5" fill="none"/><path d="M112 52 Q115 44 113 48" stroke="#1a0a05" stroke-width="1.5" fill="none"/><rect x="88" y="83" width="24" height="38" rx="4" fill="#4a235a"/><circle cx="60" cy="40" r="5" fill="#ff69b4" opacity="0.5"/><circle cx="145" cy="35" r="7" fill="#9b59b6" opacity="0.4"/><text x="100" y="150" text-anchor="middle" fill="white" font-size="11" font-family="sans-serif">Lash Artist</text></svg>`,
+  "Makeup Artist": `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="160" fill="#1a0a14"/><circle cx="95" cy="52" r="22" fill="#e8b89a"/><ellipse cx="89" cy="52" rx="5" ry="3" fill="#c0392b" opacity="0.7"/><ellipse cx="101" cy="52" rx="5" ry="3" fill="#c0392b" opacity="0.7"/><path d="M87 62 Q95 67 103 62" stroke="#c0392b" stroke-width="2" fill="none"/><rect x="83" y="72" width="24" height="38" rx="4" fill="#8e44ad"/><rect x="130" y="35" width="8" height="50" rx="4" fill="#e74c3c"/><ellipse cx="134" cy="33" rx="6" ry="4" fill="#c0392b"/><rect x="148" y="45" width="6" height="40" rx="3" fill="#f39c12"/><ellipse cx="151" cy="43" rx="5" ry="3" fill="#e67e22"/><rect x="160" y="55" width="6" height="30" rx="3" fill="#9b59b6"/><text x="95" y="150" text-anchor="middle" fill="white" font-size="11" font-family="sans-serif">Makeup Artist</text></svg>`,
+  "Painter": `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="160" fill="#0a1a2e"/><rect x="30" y="30" width="90" height="90" rx="4" fill="white"/><rect x="30" y="30" width="90" height="30" fill="#3498db"/><rect x="30" y="60" width="90" height="30" fill="#e74c3c"/><rect x="30" y="90" width="90" height="30" fill="#2ecc71"/><circle cx="150" cy="55" r="20" fill="#f0c27f"/><rect x="140" y="73" width="20" height="38" rx="4" fill="#e67e22"/><rect x="158" y="45" width="5" height="50" rx="2" fill="#8B4513"/><rect x="156" y="35" width="9" height="12" rx="2" fill="#3498db"/><text x="100" y="150" text-anchor="middle" fill="white" font-size="11" font-family="sans-serif">Painter</text></svg>`,
+  "Gardener": `<svg viewBox="0 0 200 160" xmlns="http://www.w3.org/2000/svg"><rect width="200" height="160" fill="#0d2010"/><rect x="0" y="120" width="200" height="40" fill="#1a4a1a"/><circle cx="60" cy="70" r="30" fill="#27ae60"/><circle cx="85" cy="55" r="22" fill="#2ecc71"/><circle cx="45" cy="55" r="20" fill="#27ae60"/><rect x="68" y="95" width="8" height="30" fill="#8B4513"/><circle cx="150" cy="65" r="18" fill="#f0c27f"/><rect x="140" y="81" width="20" height="40" rx="4" fill="#3d8b3d"/><rect x="158" y="70" width="5" height="45" rx="2" fill="#8B4513"/><path d="M163 70 L175 55 L168 68 L180 58 L170 72" fill="#27ae60"/><text x="100" y="150" text-anchor="middle" fill="white" font-size="11" font-family="sans-serif">Gardener</text></svg>`,
+};
+
+// ─── BUSINESS PROFILE IMAGES (SVG) ───────────────────────────────────────────
+const BIZ_IMGS = {
+  "Barber": `<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bg1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#1a1a2e"/><stop offset="100%" style="stop-color:#16213e"/></linearGradient></defs><rect width="320" height="200" fill="url(#bg1)"/><rect x="120" y="20" width="80" height="110" rx="10" fill="#0f3460" opacity="0.8"/><circle cx="160" cy="60" r="28" fill="#e8b896"/><path d="M132 60 Q160 35 188 60 Q180 45 160 42 Q140 45 132 60Z" fill="#1a0a05"/><rect x="148" y="86" width="24" height="44" rx="5" fill="#533483"/><path d="M148 130 Q160 120 172 130 L172 150 Q160 145 148 150Z" fill="#533483"/><rect x="200" y="30" width="6" height="80" rx="3" fill="white" opacity="0.8"/><rect x="210" y="30" width="6" height="80" rx="3" fill="#e74c3c" opacity="0.8"/><rect x="220" y="30" width="6" height="80" rx="3" fill="#3498db" opacity="0.8"/><rect x="196" y="25" width="34" height="8" rx="2" fill="#95a5a6"/><rect x="196" y="108" width="34" height="8" rx="2" fill="#95a5a6"/><text x="160" y="180" text-anchor="middle" fill="white" font-size="13" font-family="sans-serif" font-weight="bold">Barbershop</text></svg>`,
+  "Hairdresser": `<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bgh" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#1a0a2e"/><stop offset="100%" style="stop-color:#4a0080"/></linearGradient></defs><rect width="320" height="200" fill="url(#bgh)"/><circle cx="160" cy="70" r="30" fill="#f0c8a0"/><path d="M130 70 Q130 38 160 34 Q190 38 190 70 Q186 52 160 50 Q134 52 130 70Z" fill="#1a0a05"/><path d="M130 70 Q126 82 130 92 Q140 88 144 80" fill="#1a0a05"/><path d="M190 70 Q194 82 190 92 Q180 88 176 80" fill="#1a0a05"/><rect x="148" y="98" width="24" height="42" rx="5" fill="#8e44ad"/><rect x="80" y="55" width="50" height="70" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/><text x="105" y="85" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="9">SALON</text><rect x="190" y="55" width="50" height="70" rx="6" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/><circle cx="215" cy="80" r="15" fill="rgba(255,255,255,0.05)"/><text x="160" y="180" text-anchor="middle" fill="white" font-size="13" font-family="sans-serif" font-weight="bold">Hair Salon</text></svg>`,
+  "Nail Artist": `<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="bgn" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#2d0a2e"/><stop offset="100%" style="stop-color:#6a0050"/></linearGradient></defs><rect width="320" height="200" fill="url(#bgn)"/><circle cx="160" cy="65" r="26" fill="#f5c6a0"/><rect x="148" y="89" width="24" height="40" rx="5" fill="#8e44ad"/><rect x="100" y="95" width="14" height="24" rx="4" fill="#f5c6a0"/><rect x="84" y="97" width="14" height="22" rx="4" fill="#f5c6a0"/><rect x="182" y="95" width="14" height="24" rx="4" fill="#f5c6a0"/><rect x="198" y="97" width="14" height="22" rx="4" fill="#f5c6a0"/><rect x="100" y="115" width="14" height="7" rx="3" fill="#ff69b4"/><rect x="84" y="115" width="14" height="6" rx="3" fill="#ff1493"/><rect x="182" y="115" width="14" height="7" rx="3" fill="#9b59b6"/><rect x="198" y="115" width="14" height="6" rx="3" fill="#e91e8c"/><circle cx="60" cy="50" r="12" fill="#ff69b4" opacity="0.4"/><circle cx="265" cy="45" r="9" fill="#9b59b6" opacity="0.4"/><circle cx="250" cy="130" r="15" fill="#ff1493" opacity="0.2"/><text x="160" y="180" text-anchor="middle" fill="white" font-size="13" font-family="sans-serif" font-weight="bold">Nail Studio</text></svg>`,
+  "Plumber": `<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg"><rect width="320" height="200" fill="#1a2634"/><circle cx="160" cy="65" r="28" fill="#d4956a"/><rect x="148" y="91" width="24" height="45" rx="5" fill="#2c3e50"/><path d="M80 100 L110 100 L110 115 L80 115 Z" fill="#7f8c8d"/><path d="M72 107 Q78 107 80 100" stroke="#7f8c8d" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M72 107 Q78 107 80 115" stroke="#7f8c8d" stroke-width="6" fill="none" stroke-linecap="round"/><rect x="186" y="95" width="55" height="14" rx="4" fill="#e67e22"/><rect x="234" y="88" width="10" height="28" rx="3" fill="#d35400"/><path d="M110 136 Q160 126 210 136" stroke="#3498db" stroke-width="4" fill="none"/><circle cx="50" cy="145" r="10" fill="#3498db" opacity="0.3"/><circle cx="270" cy="135" r="8" fill="#3498db" opacity="0.2"/><text x="160" y="180" text-anchor="middle" fill="white" font-size="13" font-family="sans-serif" font-weight="bold">Plumbing Service</text></svg>`,
+  "Electrician": `<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg"><rect width="320" height="200" fill="#1c1c0a"/><circle cx="155" cy="65" r="28" fill="#e8c07a"/><rect x="143" y="91" width="24" height="44" rx="5" fill="#2c2c2c"/><polygon points="170,18 150,55 162,55 142,95 172,55 158,55" fill="#FFD700" transform="translate(-5,0)"/><rect x="70" y="90" width="38" height="8" rx="3" fill="#e74c3c"/><rect x="70" y="103" width="38" height="8" rx="3" fill="#2ecc71"/><rect x="70" y="116" width="38" height="8" rx="3" fill="#3498db"/><circle cx="240" cy="60" r="20" fill="#FFD700" opacity="0.2"/><circle cx="240" cy="60" r="12" fill="#FFD700" opacity="0.35"/><circle cx="240" cy="60" r="5" fill="#FFD700" opacity="0.7"/><text x="160" y="180" text-anchor="middle" fill="white" font-size="13" font-family="sans-serif" font-weight="bold">Electrical Service</text></svg>`,
+  "Cleaner": `<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg"><rect width="320" height="200" fill="#0d3b2e"/><circle cx="155" cy="60" r="26" fill="#f0c27f"/><rect x="143" y="84" width="24" height="42" rx="5" fill="#3498db"/><path d="M130 126 Q155 116 180 126" stroke="#2980b9" stroke-width="4" fill="none"/><rect x="195" y="45" width="14" height="75" rx="5" fill="#7f8c8d"/><ellipse cx="202" cy="44" rx="22" ry="10" fill="#95a5a6"/><path d="M186 66 Q202 58 218 66 Q202 88 186 66" fill="#3498db" opacity="0.7"/><circle cx="70" cy="100" r="20" fill="rgba(255,255,255,0.06)"/><circle cx="260" cy="90" r="16" fill="rgba(255,255,255,0.06)"/><circle cx="80" cy="55" r="8" fill="rgba(255,255,255,0.08)"/><text x="160" y="180" text-anchor="middle" fill="white" font-size="13" font-family="sans-serif" font-weight="bold">Cleaning Service</text></svg>`,
+  "Tutor": `<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg"><rect width="320" height="200" fill="#0a1628"/><rect x="30" y="35" width="140" height="95" rx="6" fill="#1a3a5c"/><rect x="35" y="40" width="130" height="85" rx="3" fill="#ecf0f1"/><line x1="35" y1="58" x2="165" y2="58" stroke="#bdc3c7" stroke-width="1.5"/><line x1="35" y1="72" x2="165" y2="72" stroke="#bdc3c7" stroke-width="1.5"/><line x1="35" y1="86" x2="165" y2="86" stroke="#bdc3c7" stroke-width="1.5"/><line x1="35" y1="100" x2="165" y2="100" stroke="#bdc3c7" stroke-width="1.5"/><rect x="38" y="42" width="80" height="6" rx="2" fill="#3498db"/><rect x="38" y="61" width="55" height="4" rx="1" fill="#95a5a6"/><rect x="38" y="75" width="70" height="4" rx="1" fill="#95a5a6"/><rect x="38" y="89" width="48" height="4" rx="1" fill="#95a5a6"/><circle cx="220" cy="70" r="30" fill="#f0c27f"/><path d="M198 70 Q220 50 242 70 Q236 58 220 55 Q204 58 198 70Z" fill="#1a0a05"/><rect x="208" y="98" width="24" height="32" rx="5" fill="#e74c3c"/><text x="160" y="180" text-anchor="middle" fill="white" font-size="13" font-family="sans-serif" font-weight="bold">Tutoring Service</text></svg>`,
+  "Lash Artist": `<svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg"><rect width="320" height="200" fill="#0d0d1a"/><circle cx="160" cy="70" r="30" fill="#f0c8a0"/><ellipse cx="160" cy="68" rx="18" ry="10" fill="white"/><ellipse cx="160" cy="68" rx="12" ry="7" fill="#3d2b1f"/><ellipse cx="160" cy="68" rx="6" ry="5" fill="#1a0a05"/><path d="M142 58 Q145 47 148 52" stroke="#1a0a05" stroke-width="2" fill="none"/><path d="M147 55 Q150 44 153 49" stroke="#1a0a05" stroke-width="2" fill="none"/><path d="M153 54 Q156 43 158 48" stroke="#1a0a05" stroke-width="2" fill="none"/><path d="M159 54 Q162 43 163 48" stroke="#1a0a05" stroke-width="2" fill="none"/><path d="M165 54 Q168 43 170 48" stroke="#1a0a05" stroke-width="2" fill="none"/><path d="M171 55 Q175 44 176 49" stroke="#1a0a05" stroke-width="2" fill="none"/><path d="M176 58 Q179 47 180 52" stroke="#1a0a05" stroke-width="2" fill="none"/><rect x="148" y="98" width="24" height="38" rx="5" fill="#4a235a"/><circle cx="70" cy="50" r="10" fill="#ff69b4" opacity="0.4"/><circle cx="255" cy="40" r="14" fill="#9b59b6" opacity="0.3"/><text x="160" y="180" text-anchor="middle" fill="white" font-size="13" font-family="sans-serif" font-weight="bold">Lash Studio</text></svg>`,
+};
+const getBizImg = cat => BIZ_IMGS[cat] || BIZ_IMGS["Barber"];
+const getCatImg = cat => CAT_IMGS[cat] || CAT_IMGS["Barber"];
+
+// ─── MOCK DATA ────────────────────────────────────────────────────────────────
+const INIT_TASKERS = [
+  {id:"1",userId:"u1",name:"Chukwuemeka Obi",business:"Emeka's Fadez",category:"Barber",location:"Surulere, Lagos",rating:4.9,reviews:203,price:2500,plan:"elite",bookingsUsed:0,desc:"Fresh cuts, clean fades, precision line-ups. 10 years in the game. Walk-ins welcome Mon–Sat.",services:[{id:"s1",name:"Haircut + Line-up",price:2500,img:null},{id:"s2",name:"Skin Fade",price:3000,img:null},{id:"s3",name:"Beard Trim",price:1500,img:null}],portfolio:[],posts:[{id:"p1",img:null,caption:"Fresh fade just landed 🔥 #BarberLife",likes:24,comments:[{user:"Tunde",text:"Clean work bro!"}],liked:false},{id:"p2",img:null,caption:"Weekend special - unlimited lineups!",likes:18,comments:[],liked:false}],coverImg:null},
+  {id:"2",userId:"u2",name:"Adaeze Nwosu",business:"Ada's Hair Palace",category:"Hairdresser",location:"Lekki, Lagos",rating:4.8,reviews:127,price:5000,plan:"pro",bookingsUsed:0,desc:"Natural hair, locs, braids & protective styles. 8 years transforming crowns.",services:[{id:"s4",name:"Wash & Style",price:5000,img:null},{id:"s5",name:"Box Braids",price:15000,img:null},{id:"s6",name:"Loc Maintenance",price:8000,img:null}],portfolio:[],posts:[{id:"p3",img:null,caption:"Box braids serving looks today 👑",likes:41,comments:[{user:"Ngozi",text:"Beautiful! How long did it take?"}],liked:false}],coverImg:null},
+  {id:"3",userId:"u3",name:"Precious Okonkwo",business:"Nails by Precious",category:"Nail Artist",location:"Victoria Island, Lagos",rating:5.0,reviews:61,price:4000,plan:"elite",bookingsUsed:0,desc:"Luxury nail art & gel extensions. Custom designs that tell your story.",services:[{id:"s7",name:"Gel Manicure",price:4000,img:null},{id:"s8",name:"Acrylic Full Set",price:8000,img:null}],portfolio:[],posts:[{id:"p4",img:null,caption:"Chrome nails are everything rn ✨",likes:67,comments:[{user:"Sola","text":"I want this!"}],liked:false}],coverImg:null},
+  {id:"4",userId:"u4",name:"James Eze",business:"Fix-It James",category:"Plumber",location:"Ikeja, Lagos",rating:4.7,reviews:98,price:5000,plan:"free",bookingsUsed:3,desc:"Certified plumber. Boilers, leaks, bathrooms. Same-day call-outs available.",services:[{id:"s9",name:"Leak Repair",price:8000,img:null},{id:"s10",name:"Pipe Installation",price:12000,img:null}],portfolio:[],posts:[],coverImg:null},
+  {id:"5",userId:"u5",name:"Ngozi Adeleke",business:"SparkRight Electrical",category:"Electrician",location:"Ajah, Lagos",rating:4.8,reviews:72,price:6000,plan:"pro",bookingsUsed:0,desc:"COREN certified electrician. Rewiring, sockets, consumer units, inspections.",services:[{id:"s11",name:"Socket Installation",price:6000,img:null},{id:"s12",name:"Full Rewire (quote)",price:0,img:null}],portfolio:[],posts:[],coverImg:null},
+  {id:"6",userId:"u6",name:"Bimpe Fashola",business:"Fresh & Clean",category:"Cleaner",location:"Yaba, Lagos",rating:4.6,reviews:134,price:3000,plan:"free",bookingsUsed:5,desc:"Professional domestic cleaning. Regular, one-off & end-of-tenancy. Fully insured.",services:[{id:"s13",name:"Regular Clean (hr)",price:3000,img:null}],portfolio:[],posts:[],coverImg:null},
+];
+
+const INIT_POSTS = INIT_TASKERS.flatMap(t=>t.posts.map(p=>({...p,taskerName:t.business,taskerCategory:t.category,taskerLocation:t.location,taskerId:t.id})));
+
+const CATEGORIES = [
+  {label:"Barber",count:24},{label:"Cleaner",count:31},{label:"Plumber",count:18},
+  {label:"Electrician",count:15},{label:"Nail Artist",count:42},{label:"Hairdresser",count:37},
+  {label:"Tutor",count:29},{label:"Lash Artist",count:19},{label:"Makeup Artist",count:22},{label:"Painter",count:16},{label:"Gardener",count:12},
+];
+
+// ─── STYLES ───────────────────────────────────────────────────────────────────
 const STYLES = `
-  :root {
-    --ink: #0A0F1E;
-    --ink-soft: #1E2640;
-    --slate: #4A5568;
-    --mist: #8896A8;
-    --bone: #F5F3EF;
-    --white: #FFFFFF;
-    --orange: #FF6B35;
-    --orange-deep: #E8531E;
-    --orange-glow: rgba(255,107,53,0.15);
-    --teal: #0FA89A;
-    --teal-soft: rgba(15,168,154,0.12);
-    --border: rgba(0,0,0,0.08);
-    --border-strong: rgba(0,0,0,0.14);
-    --glass: rgba(255,255,255,0.72);
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-    --shadow: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
-    --shadow-lg: 0 16px 48px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06);
-    --shadow-xl: 0 32px 80px rgba(0,0,0,0.18);
-    --radius-sm: 8px;
-    --radius: 14px;
-    --radius-lg: 22px;
-    --radius-xl: 32px;
-    --nav-h: 68px;
-    --page-max: 1200px;
+  :root{--ink:#0A0F1E;--ink-soft:#1E2640;--slate:#4A5568;--mist:#8896A8;--bone:#F5F3EF;--white:#FFFFFF;--orange:#FF6B35;--orange-deep:#E8531E;--orange-glow:rgba(255,107,53,0.15);--teal:#0FA89A;--teal-soft:rgba(15,168,154,0.12);--border:rgba(0,0,0,0.08);--border-strong:rgba(0,0,0,0.14);--glass:rgba(255,255,255,0.72);--shadow-sm:0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);--shadow:0 4px 16px rgba(0,0,0,0.08),0 1px 4px rgba(0,0,0,0.04);--shadow-lg:0 16px 48px rgba(0,0,0,0.12),0 4px 16px rgba(0,0,0,0.06);--shadow-xl:0 32px 80px rgba(0,0,0,0.18);--radius-sm:8px;--radius:14px;--radius-lg:22px;--radius-xl:32px;--nav-h:68px;--page-max:1200px;}
+  body{min-height:100vh;color:var(--ink);background:var(--bone);}
+  h1,h2,h3,h4{font-family:'Fraunces',serif;letter-spacing:-0.02em;}
+  a{text-decoration:none;color:inherit;}
+  button{cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;}
+
+  .navbar{position:sticky;top:0;z-index:200;height:var(--nav-h);background:rgba(245,243,239,0.9);backdrop-filter:blur(16px) saturate(180%);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 clamp(16px,4vw,48px);}
+  .nav-logo{display:flex;align-items:center;gap:10px;cursor:pointer;}
+  .nav-logo-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--orange),#FF9A56);display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 12px var(--orange-glow);}
+  .nav-logo-text{font-family:'Fraunces',serif;font-size:20px;font-weight:700;letter-spacing:-0.5px;}
+  .nav-logo-text span{color:var(--orange);}
+  .nav-links{display:flex;align-items:center;gap:4px;}
+  .nav-link{padding:8px 14px;border-radius:8px;font-size:14px;font-weight:500;color:var(--slate);background:none;border:none;transition:all .18s;}
+  .nav-link:hover{background:rgba(0,0,0,0.05);color:var(--ink);}
+  .nav-pill{display:flex;align-items:center;gap:8px;background:var(--white);border:1px solid var(--border-strong);border-radius:99px;padding:5px 5px 5px 14px;}
+  .nav-pill .pill-text{font-size:13px;font-weight:500;color:var(--slate);}
+  .nav-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--orange),var(--teal));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:white;}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 20px;border-radius:var(--radius-sm);font-size:14px;font-weight:600;border:none;transition:all .2s;white-space:nowrap;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-orange{background:var(--orange);color:white;box-shadow:0 4px 14px var(--orange-glow);}
+  .btn-orange:hover:not(:disabled){background:var(--orange-deep);transform:translateY(-1px);box-shadow:0 6px 20px rgba(255,107,53,0.3);}
+  .btn-ink{background:var(--ink);color:white;}
+  .btn-ink:hover:not(:disabled){background:var(--ink-soft);transform:translateY(-1px);}
+  .btn-ghost{background:transparent;color:var(--slate);border:1.5px solid var(--border-strong);}
+  .btn-ghost:hover:not(:disabled){background:var(--white);color:var(--ink);}
+  .btn-teal{background:var(--teal);color:white;}
+  .btn-teal:hover:not(:disabled){background:#0c9489;transform:translateY(-1px);}
+  .btn-sm{padding:7px 13px;font-size:13px;border-radius:7px;}
+  .btn-lg{padding:15px 28px;font-size:15px;border-radius:12px;}
+  .btn-xl{padding:18px 36px;font-size:16px;border-radius:14px;}
+  .btn-full{width:100%;}
+  .btn-whatsapp{background:#22C55E;color:white;}
+  .btn-whatsapp:hover:not(:disabled){background:#16a34a;}
+  .btn-red{background:#EF4444;color:white;}
+  .btn-red:hover:not(:disabled){background:#DC2626;}
+
+  .input-wrap{display:flex;flex-direction:column;gap:6px;}
+  .input-label{font-size:12px;font-weight:600;color:var(--mist);letter-spacing:.4px;text-transform:uppercase;}
+  .input{padding:12px 16px;border:1.5px solid var(--border-strong);border-radius:var(--radius-sm);font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;background:var(--white);color:var(--ink);outline:none;width:100%;transition:border-color .2s,box-shadow .2s;}
+  .input:focus{border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-glow);}
+  .input::placeholder{color:var(--mist);}
+  .input.err{border-color:#EF4444;}
+  textarea.input{resize:vertical;min-height:100px;}
+  select.input{cursor:pointer;}
+  .field-err{font-size:12px;color:#EF4444;}
+
+  /* Hero */
+  .hero{position:relative;overflow:hidden;background:var(--ink);padding:clamp(80px,10vw,130px) clamp(20px,4vw,48px) clamp(80px,10vw,120px);text-align:center;}
+  .hero-mesh{position:absolute;inset:0;pointer-events:none;overflow:hidden;}
+  .hero-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:.35;}
+  .hero-blob-1{width:600px;height:600px;background:var(--orange);top:-200px;right:-100px;}
+  .hero-blob-2{width:500px;height:500px;background:var(--teal);bottom:-200px;left:-100px;}
+  .hero-blob-3{width:300px;height:300px;background:#7C3AED;top:50%;left:50%;transform:translate(-50%,-50%);}
+  .hero-inner{position:relative;z-index:2;max-width:780px;margin:0 auto;}
+  .hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(8px);border-radius:99px;padding:6px 16px;font-size:13px;font-weight:600;color:rgba(255,255,255,.9);margin-bottom:28px;}
+  .hero-badge-dot{width:7px;height:7px;border-radius:50%;background:var(--orange);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,53,.6)}50%{box-shadow:0 0 0 6px rgba(255,107,53,0)}}
+  .hero h1{font-size:clamp(42px,7vw,80px);color:white;line-height:1.08;margin-bottom:20px;}
+  .hero h1 em{color:var(--orange);font-style:italic;}
+  .hero-sub{font-size:clamp(16px,2.5vw,20px);color:rgba(255,255,255,.65);max-width:540px;margin:0 auto 44px;line-height:1.6;font-weight:400;}
+  .hero-search-wrap{background:var(--white);border-radius:var(--radius-lg);padding:10px;display:flex;gap:6px;max-width:680px;margin:0 auto;box-shadow:var(--shadow-xl);}
+  .hero-search-field{display:flex;flex-direction:column;padding:8px 14px;flex:1;}
+  .hero-search-field label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--mist);margin-bottom:4px;}
+  .hero-search-field input{border:none;outline:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:500;color:var(--ink);background:transparent;width:100%;}
+  .hero-search-field input::placeholder{color:var(--mist);font-weight:400;}
+  .hero-divider{width:1px;background:var(--border);align-self:stretch;margin:10px 0;}
+  .hero-stats{display:flex;justify-content:center;gap:clamp(24px,4vw,48px);margin-top:52px;flex-wrap:wrap;}
+  .hero-stat{color:rgba(255,255,255,.7);font-size:13px;font-weight:500;}
+  .hero-stat strong{display:block;font-family:'Fraunces',serif;font-size:clamp(22px,3vw,30px);color:white;font-weight:700;letter-spacing:-.5px;margin-bottom:4px;}
+
+  /* Bento */
+  .bento-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .bento-cell{border-radius:var(--radius-lg);overflow:hidden;cursor:pointer;transition:transform .22s,box-shadow .22s;position:relative;}
+  .bento-cell:hover{transform:translateY(-4px) scale(1.01);box-shadow:var(--shadow-lg);}
+  .bento-large{grid-column:span 2;grid-row:span 2;}
+  .bento-wide{grid-column:span 2;}
+  .bento-cell-inner{height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:20px;min-height:160px;position:relative;}
+  .bento-large .bento-cell-inner{min-height:320px;}
+  .bento-svg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .bento-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0.1) 60%);}
+  .bento-label{font-size:15px;font-weight:700;color:white;margin-bottom:3px;position:relative;z-index:2;}
+  .bento-sub{font-size:11px;color:rgba(255,255,255,.8);font-weight:500;position:relative;z-index:2;}
+  .bento-arrow{position:absolute;top:16px;right:16px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.2);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;font-size:13px;color:white;z-index:2;}
+
+  /* Tasker card */
+  .tasker-card{background:var(--white);border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border);box-shadow:var(--shadow-sm);transition:all .25s;cursor:pointer;display:flex;flex-direction:column;}
+  .tasker-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-5px);}
+  .tasker-card-cover{height:180px;position:relative;overflow:hidden;flex-shrink:0;}
+  .tasker-cover-bg{width:100%;height:100%;}
+  .tasker-cover-bg svg{width:100%;height:100%;}
+  .tasker-cover-bg img{width:100%;height:100%;object-fit:cover;}
+  .tasker-badge{position:absolute;top:12px;right:12px;background:rgba(255,255,255,.92);backdrop-filter:blur(4px);border-radius:99px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--orange);}
+  .tasker-verified{position:absolute;top:12px;left:12px;background:rgba(15,168,154,.92);backdrop-filter:blur(4px);border-radius:99px;padding:4px 10px;font-size:11px;font-weight:700;color:white;display:flex;align-items:center;gap:4px;}
+  .tasker-elite{position:absolute;top:12px;left:12px;background:rgba(255,107,53,.92);backdrop-filter:blur(4px);border-radius:99px;padding:4px 10px;font-size:11px;font-weight:700;color:white;}
+  .tasker-body{padding:18px;flex:1;display:flex;flex-direction:column;}
+  .tasker-cat{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--teal);margin-bottom:6px;}
+  .tasker-name{font-family:'Fraunces',serif;font-size:17px;font-weight:700;margin-bottom:6px;letter-spacing:-.3px;}
+  .tasker-meta{display:flex;gap:10px;font-size:12px;color:var(--mist);font-weight:500;margin-bottom:10px;flex-wrap:wrap;}
+  .stars{color:#F59E0B;font-size:12px;letter-spacing:1px;}
+  .tasker-price{margin-top:auto;display:flex;align-items:center;justify-content:space-between;padding-top:12px;border-top:1px solid var(--border);}
+  .tasker-price-val{font-weight:700;color:var(--ink);font-size:15px;}
+  .tasker-price-val span{font-size:12px;color:var(--mist);font-weight:400;}
+
+  /* Section helpers */
+  .section{margin-bottom:clamp(60px,8vw,100px);}
+  .section-label{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--orange);margin-bottom:14px;}
+  .section-label::before{content:'';display:block;width:20px;height:2px;background:var(--orange);border-radius:1px;}
+  .section-title{font-family:'Fraunces',serif;font-size:clamp(28px,4vw,42px);letter-spacing:-.04em;margin-bottom:10px;}
+  .section-sub{color:var(--slate);font-size:16px;max-width:540px;line-height:1.6;}
+  .section-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:36px;gap:24px;flex-wrap:wrap;}
+  .page-wrap{max-width:var(--page-max);margin:0 auto;padding:0 clamp(20px,4vw,48px);}
+  .card-grid-4{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px;}
+  .card-grid-3{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;}
+  .card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-sm);}
+  .empty{text-align:center;padding:80px 24px;color:var(--mist);}
+  .empty-icon{font-size:56px;margin-bottom:16px;}
+  .divider{height:1px;background:var(--border);margin:20px 0;}
+  .badge{display:inline-flex;align-items:center;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.3px;}
+  .badge-teal{background:var(--teal-soft);color:var(--teal);}
+  .badge-orange{background:var(--orange-glow);color:var(--orange);}
+  .badge-gray{background:rgba(0,0,0,.06);color:var(--slate);}
+  .badge-gold{background:rgba(255,215,0,0.15);color:#B8860B;}
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.35);border-top-color:white;border-radius:50%;animation:spin .7s linear infinite;display:inline-block;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .error-banner{background:#FEF2F2;color:#DC2626;border:1px solid #FECACA;border-radius:8px;padding:12px 16px;font-size:13px;}
+  .success-banner{background:#F0FDF4;color:#16A34A;border:1px solid #BBF7D0;border-radius:8px;padding:12px 16px;font-size:13px;}
+  .toast{position:fixed;bottom:28px;right:28px;padding:14px 22px;border-radius:var(--radius);font-size:14px;font-weight:500;box-shadow:var(--shadow-lg);animation:slideUp .3s ease;z-index:9999;max-width:340px;display:flex;align-items:center;gap:10px;}
+  .toast.success{background:var(--ink);color:white;}
+  .toast.error{background:#EF4444;color:white;}
+  @keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+
+  /* Subscription plans */
+  .plans-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
+  .plan-card{background:var(--white);border:2px solid var(--border);border-radius:var(--radius-lg);padding:28px;position:relative;transition:all .2s;}
+  .plan-card.active{border-color:var(--orange);}
+  .plan-card.elite-plan{background:var(--ink);color:white;}
+  .plan-card.elite-plan .plan-feature{color:rgba(255,255,255,.75);}
+  .plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);padding:4px 14px;border-radius:99px;font-size:11px;font-weight:700;background:var(--orange);color:white;}
+  .plan-name{font-family:'Fraunces',serif;font-size:22px;margin-bottom:6px;}
+  .plan-price{font-size:32px;font-weight:800;margin-bottom:4px;}
+  .plan-period{font-size:13px;color:var(--mist);}
+  .plan-feature{font-size:13px;color:var(--slate);display:flex;align-items:flex-start;gap:8px;padding:6px 0;}
+  .plan-feature::before{content:'✓';color:var(--teal);font-weight:700;flex-shrink:0;}
+
+  /* Onboarding stepper */
+  .stepper{display:flex;align-items:center;gap:0;margin-bottom:40px;overflow-x:auto;padding-bottom:4px;}
+  .step-item{display:flex;align-items:center;flex-shrink:0;}
+  .step-circle{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;border:2px solid var(--border);background:var(--white);color:var(--mist);transition:all .3s;flex-shrink:0;}
+  .step-circle.done{background:var(--teal);border-color:var(--teal);color:white;}
+  .step-circle.active{background:var(--orange);border-color:var(--orange);color:white;}
+  .step-label{font-size:11px;font-weight:600;color:var(--mist);margin-top:6px;text-align:center;white-space:nowrap;}
+  .step-label.active{color:var(--orange);}
+  .step-label.done{color:var(--teal);}
+  .step-line{height:2px;flex:1;background:var(--border);min-width:20px;transition:background .3s;}
+  .step-line.done{background:var(--teal);}
+
+  /* Upload zone */
+  .upload-zone{border:2px dashed var(--border-strong);border-radius:var(--radius);padding:32px;text-align:center;cursor:pointer;transition:all .2s;background:var(--white);}
+  .upload-zone:hover{border-color:var(--orange);background:var(--orange-glow);}
+  .upload-zone input{display:none;}
+  .upload-preview{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:10px;margin-top:16px;}
+  .upload-thumb{width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--radius-sm);border:2px solid var(--border);}
+  .upload-thumb-wrap{position:relative;}
+  .upload-del{position:absolute;top:4px;right:4px;background:rgba(239,68,68,.9);color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+
+  /* Dashboard tabs */
+  .dash-tabs{display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:32px;overflow-x:auto;}
+  .dash-tab{padding:11px 18px;font-weight:600;cursor:pointer;color:var(--mist);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:all .18s;font-size:13px;border:none;background:none;}
+  .dash-tab.active{color:var(--orange);border-bottom-color:var(--orange);}
+  .dash-tab:hover{color:var(--ink);}
+
+  /* Instagram feed */
+  .feed-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px;}
+  .feed-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-sm);}
+  .feed-card-header{display:flex;align-items:center;gap:12px;padding:14px 16px;}
+  .feed-avatar{width:42px;height:42px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid var(--border);}
+  .feed-avatar svg{width:100%;height:100%;}
+  .feed-img{width:100%;aspect-ratio:1;background:var(--bone);display:flex;align-items:center;justify-content:center;font-size:64px;overflow:hidden;}
+  .feed-img img{width:100%;height:100%;object-fit:cover;}
+  .feed-actions{display:flex;align-items:center;gap:16px;padding:12px 16px 8px;}
+  .feed-action-btn{background:none;border:none;font-size:22px;cursor:pointer;transition:transform .15s;padding:0;}
+  .feed-action-btn:hover{transform:scale(1.15);}
+  .feed-likes{font-size:13px;font-weight:700;padding:0 16px;margin-bottom:6px;}
+  .feed-caption{font-size:13px;padding:0 16px 8px;line-height:1.5;}
+  .feed-comments{padding:0 16px 12px;display:flex;flex-direction:column;gap:4px;}
+  .feed-comment{font-size:12px;color:var(--slate);}
+  .feed-comment strong{color:var(--ink);}
+  .feed-add-comment{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--border);}
+  .feed-add-comment input{border:none;outline:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;flex:1;background:transparent;color:var(--ink);}
+  .feed-add-comment input::placeholder{color:var(--mist);}
+  .feed-post-btn{background:none;border:none;font-size:13px;font-weight:700;color:var(--orange);cursor:pointer;}
+
+  /* Profile page */
+  .profile-hero{background:linear-gradient(135deg,var(--ink) 0%,var(--ink-soft) 100%);padding:clamp(36px,5vw,64px) clamp(20px,4vw,48px);}
+  .profile-hero-inner{max-width:var(--page-max);margin:0 auto;display:flex;gap:28px;align-items:flex-start;flex-wrap:wrap;}
+  .profile-avatar{width:120px;height:120px;border-radius:var(--radius-lg);overflow:hidden;border:4px solid rgba(255,255,255,.2);flex-shrink:0;}
+  .profile-avatar svg,.profile-avatar img{width:100%;height:100%;object-fit:cover;}
+  .service-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border);}
+  .service-row:last-child{border-bottom:none;}
+  .gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;}
+  .gallery-img{aspect-ratio:1;border-radius:var(--radius-sm);overflow:hidden;background:var(--bone);display:flex;align-items:center;justify-content:center;font-size:32px;cursor:pointer;transition:transform .2s;position:relative;}
+  .gallery-img:hover{transform:scale(1.04);}
+  .gallery-img img{width:100%;height:100%;object-fit:cover;}
+  .gallery-img .del-btn{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.5);color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;display:none;align-items:center;justify-content:center;}
+  .gallery-img:hover .del-btn{display:flex;}
+
+  /* Filter bar */
+  .filter-bar{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px 24px;display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;box-shadow:var(--shadow-sm);margin-bottom:32px;}
+
+  /* How it works */
+  .hiw-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;}
+  .hiw-card{background:var(--white);border-radius:var(--radius-lg);padding:32px;border:1px solid var(--border);position:relative;}
+  .hiw-num{font-family:'Fraunces',serif;font-size:72px;font-weight:700;color:var(--bone);position:absolute;top:-8px;right:20px;line-height:1;pointer-events:none;}
+  .hiw-icon{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:20px;}
+  .hiw-title{font-family:'Fraunces',serif;font-size:20px;margin-bottom:10px;}
+  .hiw-desc{color:var(--slate);font-size:14px;line-height:1.7;}
+
+  /* Map */
+  .map-section{background:var(--ink);border-radius:var(--radius-xl);overflow:hidden;position:relative;min-height:420px;display:flex;}
+  .map-grid-lines{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:50px 50px;}
+  .map-inner{position:relative;z-index:2;display:flex;width:100%;}
+  .map-sidebar{width:300px;flex-shrink:0;padding:36px 28px;display:flex;flex-direction:column;justify-content:center;}
+  .map-sidebar h2{font-family:'Fraunces',serif;font-size:28px;color:white;margin-bottom:10px;}
+  .map-sidebar p{color:rgba(255,255,255,.6);font-size:14px;line-height:1.6;margin-bottom:24px;}
+  .map-pins{flex:1;position:relative;min-height:340px;}
+  .map-pin{position:absolute;transform:translate(-50%,-100%);cursor:pointer;}
+  .map-pin-dot{width:38px;height:38px;border-radius:50%;background:var(--orange);border:3px solid white;box-shadow:0 4px 16px rgba(255,107,53,.4);display:flex;align-items:center;justify-content:center;font-size:14px;transition:transform .2s;}
+  .map-pin:hover .map-pin-dot{transform:scale(1.2);}
+  .map-pin-tail{width:2px;height:10px;background:var(--orange);margin:0 auto;}
+  .map-pin-card{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--white);border-radius:var(--radius);padding:12px;width:170px;box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:opacity .2s;font-size:12px;}
+  .map-pin:hover .map-pin-card{opacity:1;}
+  .map-pin-card-name{font-weight:700;font-size:13px;margin-bottom:2px;}
+  .map-pin-card-cat{color:var(--teal);font-weight:600;margin-bottom:2px;}
+
+  /* Reviews */
+  .review-card{background:var(--white);border-radius:var(--radius-lg);padding:28px;border:1px solid var(--border);}
+  .review-quote{font-size:36px;color:var(--orange);line-height:1;margin-bottom:12px;font-family:'Fraunces',serif;}
+  .review-text{font-size:15px;line-height:1.7;color:var(--slate);margin-bottom:20px;}
+  .review-author{display:flex;align-items:center;gap:12px;}
+  .review-avatar{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
+
+  /* CTA banner */
+  .cta-banner{background:linear-gradient(135deg,var(--orange) 0%,#FF9A56 60%,#FFB347 100%);border-radius:var(--radius-xl);padding:clamp(48px,6vw,80px) clamp(32px,6vw,80px);display:flex;align-items:center;justify-content:space-between;gap:32px;overflow:hidden;position:relative;}
+  .cta-banner::before{content:'';position:absolute;top:-60px;right:-60px;width:300px;height:300px;border-radius:50%;background:rgba(255,255,255,.12);}
+  .cta-banner-text{position:relative;z-index:2;}
+  .cta-banner-text h2{font-family:'Fraunces',serif;font-size:clamp(28px,4vw,42px);color:white;margin-bottom:10px;}
+  .cta-banner-text p{color:rgba(255,255,255,.85);font-size:16px;max-width:420px;}
+  .cta-banner-actions{position:relative;z-index:2;display:flex;gap:12px;flex-shrink:0;flex-wrap:wrap;}
+
+  /* Subscription paywall */
+  .paywall-overlay{position:fixed;inset:0;background:rgba(10,15,30,0.85);backdrop-filter:blur(8px);z-index:500;display:flex;align-items:center;justify-content:center;padding:20px;}
+  .paywall-card{background:var(--white);border-radius:var(--radius-xl);padding:clamp(28px,4vw,48px);max-width:860px;width:100%;max-height:90vh;overflow-y:auto;}
+  .paywall-card h2{font-family:'Fraunces',serif;font-size:clamp(24px,3vw,36px);margin-bottom:8px;}
+  .paywall-sub{color:var(--slate);font-size:15px;margin-bottom:32px;}
+  .booking-counter{background:linear-gradient(135deg,var(--orange-glow),var(--teal-soft));border:1px solid var(--border-strong);border-radius:var(--radius);padding:16px 20px;margin-bottom:28px;display:flex;align-items:center;gap:14px;}
+  .booking-bar{flex:1;height:8px;background:var(--border);border-radius:99px;overflow:hidden;}
+  .booking-bar-fill{height:100%;background:linear-gradient(90deg,var(--orange),var(--teal));border-radius:99px;transition:width .6s;}
+
+  /* Footer */
+  .footer{background:var(--ink);color:rgba(255,255,255,.7);padding:64px clamp(20px,4vw,80px) 32px;}
+  .footer-top{display:grid;grid-template-columns:1.5fr repeat(3,1fr);gap:48px;margin-bottom:48px;}
+  .footer-col h4{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:rgba(255,255,255,.35);margin-bottom:14px;}
+  .footer-links{display:flex;flex-direction:column;gap:10px;}
+  .footer-links a{font-size:14px;color:rgba(255,255,255,.55);transition:color .15s;}
+  .footer-links a:hover{color:white;}
+  .footer-bottom{border-top:1px solid rgba(255,255,255,.08);padding-top:24px;display:flex;justify-content:space-between;align-items:center;font-size:13px;flex-wrap:wrap;gap:12px;}
+  .social-btn{width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.08);border:none;color:rgba(255,255,255,.6);display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;transition:all .18s;}
+  .social-btn:hover{background:var(--orange);color:white;}
+
+  /* Auth */
+  .auth-wrap{min-height:calc(100vh - var(--nav-h));display:flex;align-items:center;justify-content:center;padding:40px 24px;}
+  .auth-card{max-width:440px;width:100%;}
+  .auth-box{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-xl);padding:36px;box-shadow:var(--shadow);}
+
+  /* Onboarding */
+  .onboard-wrap{max-width:680px;margin:0 auto;padding:clamp(32px,5vw,60px) clamp(20px,4vw,40px);}
+  .onboard-step{animation:fadeIn .35s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+  /* Post composer */
+  .composer{background:var(--white);border:1px solid var(--border);border-radius:var(--radius-lg);padding:20px;margin-bottom:24px;}
+  .composer textarea{width:100%;border:none;outline:none;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;resize:none;min-height:60px;color:var(--ink);}
+  .composer textarea::placeholder{color:var(--mist);}
+
+  @media(max-width:900px){
+    .bento-grid{grid-template-columns:repeat(2,1fr);}
+    .bento-large{grid-column:span 2;}
+    .hiw-grid{grid-template-columns:1fr;}
+    .footer-top{grid-template-columns:1fr 1fr;}
+    .map-inner{flex-direction:column;}
+    .map-sidebar{width:100%;}
+    .map-pins{min-height:260px;}
+    .cta-banner{flex-direction:column;text-align:center;}
+    .cta-banner-actions{justify-content:center;}
+    .plans-grid{grid-template-columns:1fr;}
+    .profile-hero-inner{flex-direction:column;}
   }
-
-  /* ── Base ── */
-  body { min-height:100vh; color:var(--ink); background:var(--bone); }
-  h1,h2,h3,h4 { font-family:'Fraunces',serif; letter-spacing:-0.02em; }
-  a { text-decoration:none; color:inherit; }
-  button { cursor:pointer; font-family:'Plus Jakarta Sans',sans-serif; }
-
-  /* ── Navbar ── */
-  .navbar {
-    position:sticky; top:0; z-index:200; height:var(--nav-h);
-    background:rgba(245,243,239,0.85); backdrop-filter:blur(16px) saturate(180%);
-    border-bottom:1px solid var(--border);
-    display:flex; align-items:center; justify-content:space-between;
-    padding:0 clamp(16px,4vw,48px);
-  }
-  .nav-logo { display:flex; align-items:center; gap:10px; cursor:pointer; }
-  .nav-logo-icon {
-    width:36px; height:36px; border-radius:10px;
-    background:linear-gradient(135deg,var(--orange),#FF9A56);
-    display:flex; align-items:center; justify-content:center; font-size:18px;
-    box-shadow:0 4px 12px var(--orange-glow);
-  }
-  .nav-logo-text { font-family:'Fraunces',serif; font-size:20px; font-weight:700; letter-spacing:-0.5px; }
-  .nav-logo-text span { color:var(--orange); }
-  .nav-links { display:flex; align-items:center; gap:8px; }
-  .nav-link { padding:8px 14px; border-radius:8px; font-size:14px; font-weight:500; color:var(--slate); background:none; border:none; transition:all .18s; }
-  .nav-link:hover { background:rgba(0,0,0,0.05); color:var(--ink); }
-  .nav-pill { display:flex; align-items:center; gap:8px; background:var(--white); border:1px solid var(--border-strong); border-radius:99px; padding:6px 6px 6px 14px; }
-  .nav-pill .pill-text { font-size:13px; font-weight:500; color:var(--slate); }
-  .nav-avatar { width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,var(--orange),var(--teal)); display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:white; }
-  .nav-mobile-hide { display:flex; }
-
-  /* ── Buttons ── */
-  .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:11px 20px; border-radius:var(--radius-sm); font-size:14px; font-weight:600; border:none; transition:all .2s; white-space:nowrap; }
-  .btn:disabled { opacity:.5; cursor:not-allowed; }
-  .btn-orange { background:var(--orange); color:white; box-shadow:0 4px 14px var(--orange-glow); }
-  .btn-orange:hover:not(:disabled) { background:var(--orange-deep); transform:translateY(-1px); box-shadow:0 6px 20px rgba(255,107,53,0.3); }
-  .btn-ink { background:var(--ink); color:white; }
-  .btn-ink:hover:not(:disabled) { background:var(--ink-soft); transform:translateY(-1px); }
-  .btn-ghost { background:transparent; color:var(--slate); border:1.5px solid var(--border-strong); }
-  .btn-ghost:hover:not(:disabled) { background:var(--white); color:var(--ink); }
-  .btn-glass { background:var(--glass); color:var(--ink); border:1px solid rgba(255,255,255,0.6); backdrop-filter:blur(8px); }
-  .btn-teal { background:var(--teal); color:white; }
-  .btn-teal:hover:not(:disabled) { background:#0c9489; transform:translateY(-1px); }
-  .btn-sm { padding:8px 14px; font-size:13px; border-radius:7px; }
-  .btn-lg { padding:15px 28px; font-size:15px; border-radius:12px; }
-  .btn-xl { padding:18px 36px; font-size:16px; border-radius:14px; }
-  .btn-full { width:100%; }
-  .btn-whatsapp { background:#22C55E; color:white; }
-  .btn-whatsapp:hover:not(:disabled) { background:#16a34a; }
-
-  /* ── Inputs ── */
-  .input-wrap { display:flex; flex-direction:column; gap:6px; }
-  .input-label { font-size:12px; font-weight:600; color:var(--mist); letter-spacing:.4px; text-transform:uppercase; }
-  .input { padding:12px 16px; border:1.5px solid var(--border-strong); border-radius:var(--radius-sm); font-family:'Plus Jakarta Sans',sans-serif; font-size:15px; background:var(--white); color:var(--ink); outline:none; width:100%; transition:border-color .2s, box-shadow .2s; }
-  .input:focus { border-color:var(--orange); box-shadow:0 0 0 3px var(--orange-glow); }
-  .input::placeholder { color:var(--mist); }
-  .input.err { border-color:#EF4444; }
-  textarea.input { resize:vertical; min-height:110px; }
-  select.input { cursor:pointer; }
-  .field-err { font-size:12px; color:#EF4444; }
-
-  /* ── Hero ── */
-  .hero {
-    position:relative; overflow:hidden;
-    background:var(--ink);
-    padding:clamp(80px,10vw,130px) clamp(20px,4vw,48px) clamp(80px,10vw,120px);
-    text-align:center;
-  }
-  .hero-mesh {
-    position:absolute; inset:0; pointer-events:none; overflow:hidden;
-  }
-  .hero-blob {
-    position:absolute; border-radius:50%; filter:blur(80px); opacity:.35;
-  }
-  .hero-blob-1 { width:600px; height:600px; background:var(--orange); top:-200px; right:-100px; }
-  .hero-blob-2 { width:500px; height:500px; background:var(--teal); bottom:-200px; left:-100px; }
-  .hero-blob-3 { width:300px; height:300px; background:#7C3AED; top:50%; left:50%; transform:translate(-50%,-50%); }
-  .hero-noise { position:absolute; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E"); opacity:.4; }
-  .hero-inner { position:relative; z-index:2; max-width:780px; margin:0 auto; }
-  .hero-badge { display:inline-flex; align-items:center; gap:8px; background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); backdrop-filter:blur(8px); border-radius:99px; padding:6px 16px; font-size:13px; font-weight:600; color:rgba(255,255,255,.9); margin-bottom:28px; letter-spacing:.3px; }
-  .hero-badge-dot { width:7px; height:7px; border-radius:50%; background:var(--orange); animation:pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,107,53,.6)} 50%{box-shadow:0 0 0 6px rgba(255,107,53,0)} }
-  .hero h1 { font-size:clamp(42px,7vw,80px); color:white; line-height:1.08; margin-bottom:20px; }
-  .hero h1 em { color:var(--orange); font-style:italic; }
-  .hero-sub { font-size:clamp(16px,2.5vw,20px); color:rgba(255,255,255,.65); max-width:540px; margin:0 auto 44px; line-height:1.6; font-weight:400; }
-  .hero-search-wrap { background:var(--white); border-radius:var(--radius-lg); padding:10px; display:flex; gap:6px; max-width:680px; margin:0 auto; box-shadow:var(--shadow-xl); }
-  .hero-search-field { display:flex; flex-direction:column; padding:8px 14px; flex:1; }
-  .hero-search-field label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--mist); margin-bottom:4px; }
-  .hero-search-field input { border:none; outline:none; font-family:'Plus Jakarta Sans',sans-serif; font-size:15px; font-weight:500; color:var(--ink); background:transparent; width:100%; }
-  .hero-search-field input::placeholder { color:var(--mist); font-weight:400; }
-  .hero-divider { width:1px; background:var(--border); align-self:stretch; margin:10px 0; }
-  .hero-stats { display:flex; justify-content:center; gap:clamp(24px,4vw,48px); margin-top:52px; flex-wrap:wrap; }
-  .hero-stat { color:rgba(255,255,255,.7); font-size:13px; font-weight:500; }
-  .hero-stat strong { display:block; font-family:'Fraunces',serif; font-size:clamp(22px,3vw,30px); color:white; font-weight:700; letter-spacing:-.5px; margin-bottom:4px; }
-
-  /* ── Bento Grid ── */
-  .bento-grid { display:grid; grid-template-columns:repeat(4,1fr); grid-template-rows:auto; gap:14px; }
-  .bento-cell { border-radius:var(--radius-lg); overflow:hidden; cursor:pointer; transition:transform .22s, box-shadow .22s; position:relative; }
-  .bento-cell:hover { transform:translateY(-4px) scale(1.01); box-shadow:var(--shadow-lg); }
-  .bento-large { grid-column:span 2; grid-row:span 2; }
-  .bento-wide { grid-column:span 2; }
-  .bento-cell-inner { height:100%; display:flex; flex-direction:column; justify-content:flex-end; padding:24px; min-height:160px; position:relative; }
-  .bento-large .bento-cell-inner { min-height:320px; }
-  .bento-icon-wrap { position:absolute; top:20px; left:20px; width:52px; height:52px; border-radius:14px; background:rgba(255,255,255,.2); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; font-size:26px; }
-  .bento-label { font-size:16px; font-weight:700; color:white; margin-bottom:4px; }
-  .bento-sub { font-size:12px; color:rgba(255,255,255,.75); font-weight:500; }
-  .bento-arrow { position:absolute; top:20px; right:20px; width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.18); backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; font-size:14px; color:white; transition:background .2s; }
-  .bento-cell:hover .bento-arrow { background:rgba(255,255,255,.35); }
-
-  /* ── Tasker Cards ── */
-  .tasker-card {
-    background:var(--white); border-radius:var(--radius-lg); overflow:hidden;
-    border:1px solid var(--border); box-shadow:var(--shadow-sm);
-    transition:all .25s; cursor:pointer; display:flex; flex-direction:column;
-  }
-  .tasker-card:hover { box-shadow:var(--shadow-lg); transform:translateY(-5px); }
-  .tasker-card-cover { height:160px; position:relative; overflow:hidden; flex-shrink:0; }
-  .tasker-cover-bg { width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:56px; }
-  .tasker-badge { position:absolute; top:12px; right:12px; background:rgba(255,255,255,.92); backdrop-filter:blur(4px); border-radius:99px; padding:4px 10px; font-size:12px; font-weight:700; color:var(--orange); }
-  .tasker-verified { position:absolute; top:12px; left:12px; background:rgba(15,168,154,.92); backdrop-filter:blur(4px); border-radius:99px; padding:4px 10px; font-size:11px; font-weight:700; color:white; display:flex; align-items:center; gap:4px; }
-  .tasker-body { padding:18px; flex:1; display:flex; flex-direction:column; }
-  .tasker-cat { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--teal); margin-bottom:6px; }
-  .tasker-name { font-family:'Fraunces',serif; font-size:18px; font-weight:700; margin-bottom:6px; letter-spacing:-.3px; }
-  .tasker-meta { display:flex; gap:12px; font-size:12px; color:var(--mist); font-weight:500; margin-bottom:12px; flex-wrap:wrap; }
-  .tasker-rating { display:flex; align-items:center; gap:4px; color:var(--ink); font-weight:700; font-size:13px; }
-  .stars { color:#F59E0B; font-size:12px; letter-spacing:1px; }
-  .tasker-price { margin-top:auto; display:flex; align-items:center; justify-content:space-between; padding-top:14px; border-top:1px solid var(--border); }
-  .tasker-price-val { font-weight:700; color:var(--ink); font-size:15px; }
-  .tasker-price-val span { font-size:12px; color:var(--mist); font-weight:400; }
-
-  /* ── How It Works ── */
-  .hiw-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
-  .hiw-card { background:var(--white); border-radius:var(--radius-lg); padding:32px; border:1px solid var(--border); position:relative; transition:box-shadow .2s; }
-  .hiw-card:hover { box-shadow:var(--shadow); }
-  .hiw-num { font-family:'Fraunces',serif; font-size:72px; font-weight:700; color:var(--bone); position:absolute; top:-8px; right:20px; line-height:1; pointer-events:none; }
-  .hiw-icon { width:56px; height:56px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:28px; margin-bottom:20px; }
-  .hiw-title { font-family:'Fraunces',serif; font-size:20px; margin-bottom:10px; }
-  .hiw-desc { color:var(--slate); font-size:14px; line-height:1.7; }
-  .hiw-connector { display:flex; align-items:center; justify-content:center; color:var(--mist); font-size:24px; }
-
-  /* ── Map Section ── */
-  .map-section { background:var(--ink); border-radius:var(--radius-xl); overflow:hidden; position:relative; min-height:420px; display:flex; }
-  .map-overlay { position:absolute; inset:0; background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Ccircle cx='30' cy='30' r='1' fill='rgba(255,255,255,0.04)'/%3E%3C/svg%3E"); }
-  .map-grid-lines { position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px); background-size:50px 50px; }
-  .map-inner { position:relative; z-index:2; display:flex; width:100%; }
-  .map-sidebar { width:320px; flex-shrink:0; padding:40px 32px; display:flex; flex-direction:column; justify-content:center; }
-  .map-sidebar h2 { font-family:'Fraunces',serif; font-size:32px; color:white; margin-bottom:12px; }
-  .map-sidebar p { color:rgba(255,255,255,.6); font-size:15px; line-height:1.6; margin-bottom:28px; }
-  .map-pins { flex:1; position:relative; min-height:360px; }
-  .map-pin { position:absolute; transform:translate(-50%,-100%); cursor:pointer; }
-  .map-pin-dot { width:40px; height:40px; border-radius:50%; background:var(--orange); border:3px solid white; box-shadow:0 4px 16px rgba(255,107,53,.4); display:flex; align-items:center; justify-content:center; font-size:16px; transition:transform .2s; }
-  .map-pin:hover .map-pin-dot { transform:scale(1.2); }
-  .map-pin-tail { width:2px; height:12px; background:var(--orange); margin:0 auto; }
-  .map-pin-card { position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); background:var(--white); border-radius:var(--radius); padding:14px; width:180px; box-shadow:var(--shadow-lg); opacity:0; pointer-events:none; transition:opacity .2s; font-size:12px; }
-  .map-pin:hover .map-pin-card { opacity:1; }
-  .map-pin-card-name { font-weight:700; font-size:13px; margin-bottom:3px; }
-  .map-pin-card-cat { color:var(--teal); font-weight:600; margin-bottom:3px; }
-
-  /* ── Testimonials ── */
-  .review-card { background:var(--white); border-radius:var(--radius-lg); padding:28px; border:1px solid var(--border); transition:box-shadow .2s; }
-  .review-card:hover { box-shadow:var(--shadow); }
-  .review-quote { font-size:36px; color:var(--orange); line-height:1; margin-bottom:12px; font-family:'Fraunces',serif; }
-  .review-text { font-size:15px; line-height:1.7; color:var(--slate); margin-bottom:20px; }
-  .review-author { display:flex; align-items:center; gap:12px; }
-  .review-avatar { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
-  .review-name { font-weight:700; font-size:14px; }
-  .review-meta { font-size:12px; color:var(--mist); }
-
-  /* ── CTA Banner ── */
-  .cta-banner { background:linear-gradient(135deg,var(--orange) 0%,#FF9A56 60%,#FFB347 100%); border-radius:var(--radius-xl); padding:clamp(48px,6vw,80px) clamp(32px,6vw,80px); display:flex; align-items:center; justify-content:space-between; gap:32px; overflow:hidden; position:relative; }
-  .cta-banner::before { content:''; position:absolute; top:-60px; right:-60px; width:300px; height:300px; border-radius:50%; background:rgba(255,255,255,.12); }
-  .cta-banner::after { content:''; position:absolute; bottom:-80px; left:40%; width:200px; height:200px; border-radius:50%; background:rgba(255,255,255,.08); }
-  .cta-banner-text { position:relative; z-index:2; }
-  .cta-banner-text h2 { font-family:'Fraunces',serif; font-size:clamp(28px,4vw,42px); color:white; margin-bottom:10px; }
-  .cta-banner-text p { color:rgba(255,255,255,.85); font-size:16px; max-width:420px; }
-  .cta-banner-actions { position:relative; z-index:2; display:flex; gap:12px; flex-shrink:0; flex-wrap:wrap; }
-
-  /* ── Footer ── */
-  .footer { background:var(--ink); color:rgba(255,255,255,.7); padding:64px clamp(20px,4vw,80px) 32px; }
-  .footer-top { display:grid; grid-template-columns:1.5fr repeat(3,1fr); gap:48px; margin-bottom:56px; }
-  .footer-brand p { font-size:14px; line-height:1.7; color:rgba(255,255,255,.5); margin-top:14px; max-width:280px; }
-  .footer-col h4 { font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:rgba(255,255,255,.4); margin-bottom:16px; }
-  .footer-links { display:flex; flex-direction:column; gap:10px; }
-  .footer-links a { font-size:14px; color:rgba(255,255,255,.6); transition:color .15s; }
-  .footer-links a:hover { color:white; }
-  .footer-bottom { border-top:1px solid rgba(255,255,255,.08); padding-top:28px; display:flex; justify-content:space-between; align-items:center; font-size:13px; flex-wrap:gap; gap:12px; }
-  .footer-socials { display:flex; gap:12px; }
-  .social-btn { width:36px; height:36px; border-radius:8px; background:rgba(255,255,255,.08); border:none; color:rgba(255,255,255,.6); display:flex; align-items:center; justify-content:center; font-size:16px; cursor:pointer; transition:all .18s; }
-  .social-btn:hover { background:var(--orange); color:white; }
-
-  /* ── Section helpers ── */
-  .section { margin-bottom:clamp(60px,8vw,100px); }
-  .section-label { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:var(--orange); margin-bottom:14px; }
-  .section-label::before { content:''; display:block; width:20px; height:2px; background:var(--orange); border-radius:1px; }
-  .section-title { font-family:'Fraunces',serif; font-size:clamp(28px,4vw,42px); letter-spacing:-.04em; margin-bottom:10px; }
-  .section-sub { color:var(--slate); font-size:16px; max-width:540px; line-height:1.6; }
-  .section-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:36px; gap:24px; flex-wrap:wrap; }
-  .page-wrap { max-width:var(--page-max); margin:0 auto; padding:0 clamp(20px,4vw,48px); }
-
-  /* ── Auth Page ── */
-  .auth-wrap { min-height:calc(100vh - var(--nav-h)); display:flex; align-items:center; justify-content:center; padding:40px 24px; background:var(--bone); }
-  .auth-card { max-width:440px; width:100%; }
-  .auth-logo { text-align:center; margin-bottom:32px; }
-  .auth-box { background:var(--white); border:1px solid var(--border); border-radius:var(--radius-xl); padding:36px; box-shadow:var(--shadow); }
-
-  /* ── Dashboard ── */
-  .dash-wrap { max-width:900px; margin:0 auto; padding:48px clamp(20px,4vw,48px); }
-  .dash-header { background:var(--ink); border-radius:var(--radius-lg); padding:32px; color:white; margin-bottom:32px; }
-  .dash-tabs { display:flex; gap:4px; border-bottom:2px solid var(--border); margin-bottom:32px; overflow-x:auto; }
-  .dash-tab { padding:12px 20px; font-weight:600; cursor:pointer; color:var(--mist); border-bottom:2px solid transparent; margin-bottom:-2px; white-space:nowrap; transition:all .18s; font-size:14px; border:none; background:none; }
-  .dash-tab.active { color:var(--orange); border-bottom-color:var(--orange); }
-  .dash-tab:hover { color:var(--ink); }
-
-  /* ── Profile Page ── */
-  .profile-hero { background:linear-gradient(135deg,var(--ink) 0%,var(--ink-soft) 100%); padding:clamp(36px,5vw,64px) clamp(20px,4vw,48px); }
-  .profile-hero-inner { max-width:var(--page-max); margin:0 auto; display:flex; gap:28px; align-items:flex-start; }
-  .profile-avatar { width:110px; height:110px; border-radius:var(--radius-lg); background:linear-gradient(135deg,var(--orange),var(--teal)); display:flex; align-items:center; justify-content:center; font-size:48px; border:4px solid rgba(255,255,255,.2); flex-shrink:0; }
-  .profile-info { flex:1; }
-  .profile-name { font-family:'Fraunces',serif; font-size:clamp(26px,4vw,40px); color:white; margin-bottom:6px; }
-  .profile-meta { display:flex; gap:16px; flex-wrap:wrap; font-size:14px; color:rgba(255,255,255,.65); }
-
-  /* ── Search page ── */
-  .filter-bar { background:var(--white); border:1px solid var(--border); border-radius:var(--radius-lg); padding:20px 24px; display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap; box-shadow:var(--shadow-sm); margin-bottom:32px; }
-
-  /* ── Card grid ── */
-  .card-grid-3 { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:20px; }
-  .card-grid-4 { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:20px; }
-
-  /* ── Empty state ── */
-  .empty { text-align:center; padding:80px 24px; color:var(--mist); }
-  .empty-icon { font-size:56px; margin-bottom:16px; }
-
-  /* ── Toast ── */
-  .toast { position:fixed; bottom:28px; right:28px; padding:14px 22px; border-radius:var(--radius); font-size:14px; font-weight:500; box-shadow:var(--shadow-lg); animation:slideUp .3s ease; z-index:999; max-width:340px; display:flex; align-items:center; gap:10px; }
-  .toast.success { background:var(--ink); color:white; }
-  .toast.error { background:#EF4444; color:white; }
-  @keyframes slideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
-
-  /* ── Misc ── */
-  .badge { display:inline-flex; align-items:center; padding:4px 10px; border-radius:99px; font-size:11px; font-weight:700; letter-spacing:.3px; }
-  .badge-teal { background:var(--teal-soft); color:var(--teal); }
-  .badge-orange { background:var(--orange-glow); color:var(--orange); }
-  .badge-gray { background:rgba(0,0,0,.06); color:var(--slate); }
-  .divider { height:1px; background:var(--border); margin:24px 0; }
-  .spinner { width:16px; height:16px; border:2px solid rgba(255,255,255,.35); border-top-color:white; border-radius:50%; animation:spin .7s linear infinite; display:inline-block; }
-  @keyframes spin { to{transform:rotate(360deg)} }
-  .error-banner { background:#FEF2F2; color:#DC2626; border:1px solid #FECACA; border-radius:8px; padding:12px 16px; font-size:13px; }
-  .success-banner { background:#F0FDF4; color:#16A34A; border:1px solid #BBF7D0; border-radius:8px; padding:12px 16px; font-size:13px; }
-  .card { background:var(--white); border:1px solid var(--border); border-radius:var(--radius); padding:24px; box-shadow:var(--shadow-sm); }
-  .service-row { display:flex; justify-content:space-between; align-items:center; padding:14px 0; border-bottom:1px solid var(--border); }
-  .service-row:last-child { border-bottom:none; }
-  .gallery-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:10px; }
-  .gallery-img { aspect-ratio:1; border-radius:var(--radius-sm); overflow:hidden; background:var(--bone); display:flex; align-items:center; justify-content:center; font-size:32px; cursor:pointer; transition:transform .2s; position:relative; }
-  .gallery-img:hover { transform:scale(1.04); }
-  .gallery-img .del-btn { position:absolute; top:4px; right:4px; background:rgba(0,0,0,.5); color:white; border:none; border-radius:50%; width:22px; height:22px; font-size:11px; cursor:pointer; display:none; align-items:center; justify-content:center; }
-  .gallery-img:hover .del-btn { display:flex; }
-
-  @media (max-width:768px) {
-    .bento-grid { grid-template-columns:repeat(2,1fr); }
-    .bento-large { grid-column:span 2; }
-    .hiw-grid { grid-template-columns:1fr; }
-    .hiw-connector { display:none; }
-    .footer-top { grid-template-columns:1fr 1fr; }
-    .map-inner { flex-direction:column; }
-    .map-sidebar { width:100%; }
-    .map-pins { min-height:260px; }
-    .cta-banner { flex-direction:column; text-align:center; }
-    .cta-banner-actions { justify-content:center; }
-    .nav-mobile-hide { display:none; }
-    .hero-search-wrap { flex-direction:column; }
-    .hero-divider { display:none; }
-  }
-  @media (max-width:480px) {
-    .bento-grid { grid-template-columns:1fr; }
-    .bento-large,.bento-wide { grid-column:span 1; }
-    .footer-top { grid-template-columns:1fr; }
+  @media(max-width:600px){
+    .bento-grid{grid-template-columns:1fr;}
+    .bento-large,.bento-wide{grid-column:span 1;}
+    .footer-top{grid-template-columns:1fr;}
+    .hero-search-wrap{flex-direction:column;}
+    .hero-divider{display:none;}
+    .nav-links{display:none;}
   }
 `;
 
-// ─── DATA ─────────────────────────────────────────────────────────────────────
-const TASKERS = [
-  {id:"1",name:"Amara Osei",business:"Glow Studio by Amara",category:"Lash Artist",location:"Brixton",rating:4.9,reviews:84,price:45,emoji:"✨",grad:"linear-gradient(135deg,#667eea,#764ba2)",desc:"Certified lash & brow artist with 6 years experience. Natural-looking volume lashes.",services:[{name:"Classic Lash Set",price:65},{name:"Hybrid Lash Set",price:85},{name:"Volume Lash Set",price:100},{name:"Lash Infill",price:45}],portfolio:["💅","✨","👁️","🌟","💫","✨"],contactWhatsapp:"+447700900001",contactPhone:"+447700900001"},
-  {id:"2",name:"Destiny Adeyemi",business:"Curl & Crown",category:"Hairdresser",location:"Peckham",rating:4.8,reviews:127,price:55,emoji:"👑",grad:"linear-gradient(135deg,#f093fb,#f5576c)",desc:"Natural hair, locs, braids & protective styles. 8 years transforming crowns.",services:[{name:"Wash & Style",price:55},{name:"Box Braids",price:120},{name:"Loc Maintenance",price:70}],portfolio:["💇‍♀️","👑","🌺","💫","✂️","🌟"],contactWhatsapp:"+447700900002",contactPhone:"+447700900002"},
-  {id:"3",name:"Dele Bankole",business:"Barber's Chair",category:"Barber",location:"Hackney",rating:4.9,reviews:203,price:30,emoji:"✂️",grad:"linear-gradient(135deg,#4facfe,#00f2fe)",desc:"Fresh cuts, clean fades, precision line-ups. 10 years. Walk-ins welcome.",services:[{name:"Haircut + Line-up",price:30},{name:"Skin Fade",price:35},{name:"Beard Trim & Shape",price:15},{name:"Cut + Beard Combo",price:45}],portfolio:["✂️","💈","🪮","💇‍♂️","✨","🌟"],contactWhatsapp:"+447700900003",contactPhone:"+447700900003"},
-  {id:"4",name:"Precious Nwosu",business:"Nails by Precious",category:"Nail Artist",location:"Clapham",rating:5.0,reviews:61,price:40,emoji:"💅",grad:"linear-gradient(135deg,#fa709a,#fee140)",desc:"Luxury nail art & gel extensions. Custom designs. Studio + home visits.",services:[{name:"Gel Manicure",price:40},{name:"Acrylic Full Set",price:65},{name:"Nail Art (per nail)",price:5}],portfolio:["💅","🌸","✨","🎨","💎","🌺"],contactWhatsapp:"+447700900004",contactPhone:"+447700900004"},
-  {id:"5",name:"James Okafor",business:"Fix-It James",category:"Plumber",location:"Lewisham",rating:4.7,reviews:98,price:60,emoji:"🔧",grad:"linear-gradient(135deg,#0F2027,#203A43,#2C5364)",desc:"Certified plumber. Boilers, leaks, bathrooms. Same-day call-outs available.",services:[{name:"Leak Repair",price:80},{name:"Boiler Service",price:120},{name:"Bathroom Fit",price:400}],portfolio:["🔧","🚿","🪠","💧","🔩","🛠️"],contactWhatsapp:"+447700900005",contactPhone:"+447700900005"},
-  {id:"6",name:"Sophie Clarke",business:"Bright Mind Tutors",category:"Tutor",location:"Islington",rating:4.9,reviews:45,price:35,emoji:"📚",grad:"linear-gradient(135deg,#a18cd1,#fbc2eb)",desc:"Maths & Science GCSE/A-Level specialist. Online or in-person. CRB checked.",services:[{name:"1-to-1 Session",price:35},{name:"Group Session",price:20},{name:"Exam Prep",price:45}],portfolio:["📚","📐","🧪","✏️","🎓","📊"],contactWhatsapp:"+447700900006",contactPhone:"+447700900006"},
-  {id:"7",name:"Kwame Mensah",business:"SparkRight Electrical",category:"Electrician",location:"Wandsworth",rating:4.8,reviews:72,price:70,emoji:"⚡",grad:"linear-gradient(135deg,#f7971e,#ffd200)",desc:"NICEIC certified electrician. Rewiring, sockets, consumer units, inspections.",services:[{name:"Socket Installation",price:70},{name:"Full Rewire (quote)",price:0},{name:"EICR Cert",price:200}],portfolio:["⚡","🔌","💡","🛠️","🔋","🏠"],contactWhatsapp:"+447700900007",contactPhone:"+447700900007"},
-  {id:"8",name:"Grace Mensah",business:"Fresh & Clean",category:"Cleaner",location:"Croydon",rating:4.6,reviews:134,price:20,emoji:"🧹",grad:"linear-gradient(135deg,#11998e,#38ef7d)",desc:"Professional domestic cleaning. Regular, one-off & end-of-tenancy. Fully insured.",services:[{name:"Regular Clean (hr)",price:20},{name:"Deep Clean",price:150},{name:"End of Tenancy",price:250}],portfolio:["🧹","🫧","✨","🏠","🧴","💫"],contactWhatsapp:"+447700900008",contactPhone:"+447700900008"},
-];
-
-const CATEGORIES = [
-  {label:"Barber",icon:"✂️",count:24,grad:"linear-gradient(135deg,#4facfe,#00f2fe)",span:"large"},
-  {label:"Cleaner",icon:"🧹",count:31,grad:"linear-gradient(135deg,#11998e,#38ef7d)",span:""},
-  {label:"Plumber",icon:"🔧",count:18,grad:"linear-gradient(135deg,#0F2027,#2C5364)",span:""},
-  {label:"Electrician",icon:"⚡",count:15,grad:"linear-gradient(135deg,#f7971e,#ffd200)",span:"wide"},
-  {label:"Nail Artist",icon:"💅",count:42,grad:"linear-gradient(135deg,#fa709a,#fee140)",span:""},
-  {label:"Hairdresser",icon:"💇‍♀️",count:37,grad:"linear-gradient(135deg,#f093fb,#f5576c)",span:""},
-  {label:"Tutor",icon:"📚",count:29,grad:"linear-gradient(135deg,#a18cd1,#fbc2eb)",span:""},
-  {label:"Lash Artist",icon:"👁️",count:19,grad:"linear-gradient(135deg,#667eea,#764ba2)",span:""},
-];
-
-const REVIEWS = [
-  {text:"Dele gave me the cleanest fade I've ever had. Booked again within the week — absolute craftsman.",name:"Marcus T.",service:"Barber • Hackney",avatar:"🧑🏾",stars:5},
-  {text:"Precious did my nails for my wedding and they were absolutely perfect. Every guest asked about them!",name:"Yemi O.",service:"Nail Artist • Clapham",avatar:"👩🏾",stars:5},
-  {text:"James fixed our boiler on the same day we called. Professional, quick, fair price. Highly recommend.",name:"Sarah K.",service:"Plumber • Lewisham",avatar:"👩",stars:5},
-  {text:"Street Tasker made it so easy to find a trusted tutor near us. Sophie is brilliant with our son.",name:"David M.",service:"Tutor • Islington",avatar:"👨",stars:5},
-  {text:"Amara's lashes are incredible. The studio is clean and she really takes her time. Won't go anywhere else.",name:"Chidera N.",service:"Lash Artist • Brixton",avatar:"👩🏿",stars:5},
-  {text:"Grace and her team transformed our flat. Spotless, professional and great value. Using monthly now.",name:"Tom H.",service:"Cleaner • Croydon",avatar:"👨🏼",stars:5},
-];
-
-const MAP_PINS = [
-  {x:"25%",y:"35%",tasker:TASKERS[0]},{x:"55%",y:"25%",tasker:TASKERS[1]},
-  {x:"70%",y:"45%",tasker:TASKERS[2]},{x:"40%",y:"60%",tasker:TASKERS[3]},
-  {x:"60%",y:"70%",tasker:TASKERS[4]},{x:"80%",y:"30%",tasker:TASKERS[5]},
-  {x:"30%",y:"75%",tasker:TASKERS[6]},{x:"85%",y:"60%",tasker:TASKERS[7]},
-];
-
-// ─── AUTH CONTEXT ──────────────────────────────────────────────────────────────
+// ─── AUTH CONTEXT ─────────────────────────────────────────────────────────────
 const AuthCtx = createContext(null);
 const useAuth = () => useContext(AuthCtx);
 
-// ─── ROOT APP ──────────────────────────────────────────────────────────────────
+// ─── ROOT APP ─────────────────────────────────────────────────────────────────
 function App() {
   const [page,setPage] = useState("home");
   const [user,setUser] = useState(null);
-  const [taskers,setTaskers] = useState(TASKERS);
+  const [taskers,setTaskers] = useState(INIT_TASKERS);
   const [selectedTasker,setSelectedTasker] = useState(null);
   const [searchQuery,setSearchQuery] = useState({service:"",location:""});
   const [authMode,setAuthMode] = useState("login");
   const [toast,setToast] = useState(null);
+  const [globalPosts,setGlobalPosts] = useState(INIT_POSTS);
+  const [showPaywall,setShowPaywall] = useState(false);
+  const [paywallTasker,setPaywallTasker] = useState(null);
 
   const showToast = useCallback((msg,type="success")=>{
-    setToast({msg,type});
-    setTimeout(()=>setToast(null),4000);
+    setToast({msg,type}); setTimeout(()=>setToast(null),4000);
   },[]);
 
   const navigate = (pg,data={}) => {
     if(pg==="profile"&&data.tasker) setSelectedTasker(data.tasker);
-    setPage(pg);
-    window.scrollTo(0,0);
+    setPage(pg); window.scrollTo(0,0);
   };
 
   const handleSearch = (q) => { setSearchQuery(q); navigate("search"); };
-  const handleLogin = (u) => { setUser(u); navigate(u.role==="provider"?"dashboard":"home"); showToast(`Welcome back, ${u.name}! 👋`); };
+
+  const handleLogin = (u) => {
+    setUser(u);
+    navigate(u.role==="provider"?"dashboard":u.role==="client"?"clientdash":"home");
+    showToast(`Welcome back, ${u.name}! 👋`);
+  };
+
   const handleRegister = (u) => {
-    const newUser = {...u,id:Date.now().toString()};
+    const newUser = {...u, id:"user_"+Date.now()};
     setUser(newUser);
-    if(u.role==="provider"){
-      setTaskers(prev=>[...prev,{id:newUser.id,userId:newUser.id,name:u.name,business:u.businessName||u.name+"'s Business",category:"Barber",location:"",rating:5.0,reviews:0,price:0,emoji:"⭐",grad:"linear-gradient(135deg,var(--orange),var(--teal))",desc:"",services:[],portfolio:[],contactWhatsapp:"",contactPhone:""}]);
-      navigate("dashboard");
-    } else navigate("home");
+    if(u.role==="provider") {
+      navigate("onboard");
+    } else {
+      navigate("clientdash");
+    }
     showToast("Welcome to Street Tasker! 🎉");
   };
-  const handleUpdateProfile = (updated) => setTaskers(prev=>prev.map(t=>t.userId===user?.id?{...t,...updated}:t));
-  const myProfile = taskers.find(t=>t.userId===user?.id);
+
+  const handleOnboardComplete = (profile) => {
+    const newTasker = {
+      id:"t_"+Date.now(), userId:user.id,
+      name:user.name, business:profile.businessName||user.name,
+      category:profile.category||"Barber", location:profile.location||"Lagos",
+      rating:5.0, reviews:0, price:profile.startingPrice||0,
+      plan:"free", bookingsUsed:0,
+      desc:profile.description||"",
+      services:profile.services||[], portfolio:profile.workPhotos||[],
+      posts:[], coverImg:profile.coverImg||null,
+      contactWhatsapp:profile.whatsapp||"", contactPhone:profile.phone||"",
+    };
+    setTaskers(prev=>[...prev, newTasker]);
+    navigate("dashboard");
+    showToast("Profile created! Welcome aboard 🎉");
+  };
+
+  const handleUpdateTasker = (updated) => {
+    setTaskers(prev=>prev.map(t=>t.userId===user?.id?{...t,...updated}:t));
+  };
+
+  const handleBooking = (tasker) => {
+    const myTasker = taskers.find(t=>t.userId===tasker.userId);
+    const t = myTasker||tasker;
+    const limit = t.plan==="elite"?999999:t.plan==="pro"?100:5;
+    if(t.bookingsUsed>=limit) {
+      setPaywallTasker(t);
+      setShowPaywall(true);
+      return false;
+    }
+    setTaskers(prev=>prev.map(tk=>tk.id===t.id?{...tk,bookingsUsed:(tk.bookingsUsed||0)+1}:tk));
+    return true;
+  };
+
+  const handleSubscribe = (plan) => {
+    if(!paywallTasker) return;
+    setTaskers(prev=>prev.map(t=>t.id===paywallTasker.id?{...t,plan:plan.id,bookingsUsed:0}:t));
+    setShowPaywall(false);
+    showToast(`Upgraded to ${plan.name} plan! 🎉`);
+  };
+
+  const handleAddPost = (taskerId, post) => {
+    const fullPost = {...post, taskerId, id:"post_"+Date.now(), likes:0, comments:[], liked:false};
+    setTaskers(prev=>prev.map(t=>t.id===taskerId?{...t,posts:[fullPost,...(t.posts||[])]}:t));
+    setGlobalPosts(prev=>[{...fullPost, taskerName:taskers.find(t=>t.id===taskerId)?.business||"", taskerCategory:taskers.find(t=>t.id===taskerId)?.category||""},...prev]);
+    showToast("Post shared! ✓");
+  };
+
+  const handleLike = (postId) => {
+    setGlobalPosts(prev=>prev.map(p=>p.id===postId?{...p,likes:p.liked?p.likes-1:p.likes+1,liked:!p.liked}:p));
+  };
+
+  const handleComment = (postId, text) => {
+    setGlobalPosts(prev=>prev.map(p=>p.id===postId?{...p,comments:[...p.comments,{user:user?.name||"You",text}]}:p));
+  };
+
+  const myTasker = taskers.find(t=>t.userId===user?.id);
 
   return (
     <>
       <style>{STYLES}</style>
-      <AuthCtx.Provider value={{user,setUser,myProfile}}>
+      <AuthCtx.Provider value={{user,setUser,myTasker}}>
         <Navbar navigate={navigate}/>
-        {page==="home"      && <HomePage navigate={navigate} onSearch={handleSearch} taskers={taskers} showToast={showToast}/>}
-        {page==="search"    && <SearchPage navigate={navigate} taskers={taskers} initial={searchQuery}/>}
-        {page==="profile"   && <ProfilePage tasker={selectedTasker} navigate={navigate} showToast={showToast}/>}
-        {page==="dashboard" && (user?.role==="provider"
-          ? <Dashboard navigate={navigate} profile={myProfile} onUpdate={handleUpdateProfile} showToast={showToast}/>
-          : <AuthPage mode={authMode} setMode={setAuthMode} onLogin={handleLogin} onRegister={handleRegister} navigate={navigate}/>
-        )}
-        {page==="auth"      && <AuthPage mode={authMode} setMode={setAuthMode} onLogin={handleLogin} onRegister={handleRegister} navigate={navigate}/>}
-        {page==="become"    && <BecomeTaskerPage navigate={navigate} onRegister={handleRegister} showToast={showToast}/>}
+        {page==="home"       && <HomePage navigate={navigate} onSearch={handleSearch} taskers={taskers} showToast={showToast}/>}
+        {page==="search"     && <SearchPage navigate={navigate} taskers={taskers} initial={searchQuery}/>}
+        {page==="profile"    && <ProfilePage tasker={selectedTasker} navigate={navigate} showToast={showToast} onBook={handleBooking}/>}
+        {page==="dashboard"  && <Dashboard navigate={navigate} tasker={myTasker} onUpdate={handleUpdateTasker} onAddPost={handleAddPost} showToast={showToast}/>}
+        {page==="clientdash" && <ClientDashboard navigate={navigate} posts={globalPosts} taskers={taskers} onLike={handleLike} onComment={handleComment} showToast={showToast}/>}
+        {page==="auth"       && <AuthPage mode={authMode} setMode={setAuthMode} onLogin={handleLogin} onRegister={handleRegister} navigate={navigate}/>}
+        {page==="onboard"    && <OnboardingPage onComplete={handleOnboardComplete} navigate={navigate} showToast={showToast}/>}
+        {page==="become"     && <BecomeTaskerPage navigate={navigate}/>}
+        {page==="pricing"    && <PricingPage navigate={navigate} myTasker={myTasker} onSubscribe={handleSubscribe}/>}
       </AuthCtx.Provider>
+      {showPaywall && <PaywallModal tasker={paywallTasker} onClose={()=>setShowPaywall(false)} onSubscribe={handleSubscribe}/>}
       {toast && <div className={`toast ${toast.type}`}><span>{toast.type==="success"?"✓":"✕"}</span>{toast.msg}</div>}
     </>
   );
@@ -452,29 +534,30 @@ function App() {
 
 // ─── NAVBAR ──────────────────────────────────────────────────────────────────
 function Navbar({navigate}) {
-  const {user,setUser} = useAuth();
+  const {user,setUser,myTasker} = useAuth();
   return (
     <nav className="navbar">
       <div className="nav-logo" onClick={()=>navigate("home")}>
         <div className="nav-logo-icon">⚡</div>
         <div className="nav-logo-text">Street<span>Tasker</span></div>
       </div>
-      <div className="nav-links nav-mobile-hide">
+      <div className="nav-links">
         <button className="nav-link" onClick={()=>navigate("search")}>Browse</button>
         <button className="nav-link" onClick={()=>navigate("become")}>Become a Tasker</button>
-        <button className="nav-link">How it works</button>
+        <button className="nav-link" onClick={()=>navigate("pricing")}>Pricing</button>
       </div>
       <div style={{display:"flex",gap:"8px",alignItems:"center"}}>
         {user ? (
           <div className="nav-pill">
             <span className="pill-text">{user.name}</span>
             {user.role==="provider" && <button className="btn btn-sm btn-ghost" style={{padding:"5px 10px",border:"none"}} onClick={()=>navigate("dashboard")}>Dashboard</button>}
+            {user.role==="client" && <button className="btn btn-sm btn-ghost" style={{padding:"5px 10px",border:"none"}} onClick={()=>navigate("clientdash")}>Feed</button>}
             <div className="nav-avatar" style={{cursor:"pointer"}} onClick={()=>{setUser(null);navigate("home");}}>{user.name[0].toUpperCase()}</div>
           </div>
         ):(
           <>
-            <button className="btn btn-ghost btn-sm nav-mobile-hide" onClick={()=>{navigate("auth");}}>Sign in</button>
-            <button className="btn btn-orange btn-sm" onClick={()=>{navigate("auth");}}>Join free</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>navigate("auth")}>Sign in</button>
+            <button className="btn btn-orange btn-sm" onClick={()=>navigate("auth")}>Join free</button>
           </>
         )}
       </div>
@@ -487,63 +570,63 @@ function HomePage({navigate,onSearch,taskers,showToast}) {
   const [service,setService] = useState("");
   const [location,setLocation] = useState("");
   const [suggests,setSuggests] = useState([]);
-  const allServices = ["Barber","Cleaner","Plumber","Electrician","Nail Artist","Hairdresser","Tutor","Lash Artist","Makeup Artist","Brow Artist","Painter","Gardener"];
-
-  const handleServiceChange = (v) => {
-    setService(v);
-    setSuggests(v.length>1 ? allServices.filter(s=>s.toLowerCase().includes(v.toLowerCase())).slice(0,5) : []);
-  };
+  const allServices = ["Barber","Cleaner","Plumber","Electrician","Nail Artist","Hairdresser","Tutor","Lash Artist","Makeup Artist","Painter","Gardener"];
+  const REVIEWS = [
+    {text:"Emeka gave me the cleanest fade I've ever had. Booked again the same week — absolute legend.",name:"Tunde A.",service:"Barber • Surulere",avatar:"🧑🏾",stars:5},
+    {text:"Ada braided my hair for my wedding and it was absolutely flawless. All my guests were asking who did it!",name:"Chisom O.",service:"Hairdresser • Lekki",avatar:"👩🏾",stars:5},
+    {text:"James fixed our burst pipe on the same day we called. Professional, fast, and very fair price.",name:"Kemi B.",service:"Plumber • Ikeja",avatar:"👩🏽",stars:5},
+    {text:"Street Tasker made it so easy to find a trusted tutor in my area. My son's grades have improved so much.",name:"Babatunde M.",service:"Tutor • Victoria Island",avatar:"👨🏾",stars:5},
+    {text:"Precious's nail art is on a completely different level. The studio is so clean and she takes her time.",name:"Zainab K.",service:"Nail Artist • V.I.",avatar:"👩🏿",stars:5},
+    {text:"Bimpe and her team transformed my flat before I moved in. Spotless. Already booked them monthly.",name:"Emeka T.",service:"Cleaner • Yaba",avatar:"👨🏾",stars:5},
+  ];
+  const MAP_PINS = taskers.slice(0,8).map((t,i)=>({x:`${15+i*10}%`,y:`${20+((i*37)%60)}%`,tasker:t}));
 
   const doSearch = () => { setSuggests([]); onSearch({service:service.trim(),location:location.trim()}); };
 
+  const eliteTaskers = taskers.filter(t=>t.plan==="elite");
+  const featuredTaskers = [...eliteTaskers, ...taskers.filter(t=>t.plan!=="elite")].slice(0,8);
+
   return (
     <>
-      {/* HERO */}
       <section className="hero">
         <div className="hero-mesh">
           <div className="hero-blob hero-blob-1"/>
           <div className="hero-blob hero-blob-2"/>
           <div className="hero-blob hero-blob-3"/>
-          <div className="hero-noise"/>
         </div>
         <div className="hero-inner">
-          <div className="hero-badge"><div className="hero-badge-dot"/><span>Now live in London — 500+ taskers</span></div>
+          <div className="hero-badge"><div className="hero-badge-dot"/><span>Now live in Lagos — 500+ taskers</span></div>
           <h1>Your street.<br/>Your <em>people.</em><br/>Done.</h1>
           <p className="hero-sub">Find trusted local barbers, cleaners, plumbers, electricians, tutors and more — right in your neighbourhood.</p>
           <div style={{position:"relative",maxWidth:680,margin:"0 auto"}}>
             <div className="hero-search-wrap">
               <div className="hero-search-field" style={{flex:2}}>
                 <label>What do you need?</label>
-                <input value={service} onChange={e=>handleServiceChange(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doSearch()} placeholder="e.g. barber, cleaner, tutor..."/>
+                <input value={service} onChange={e=>{setService(e.target.value);setSuggests(e.target.value.length>1?allServices.filter(s=>s.toLowerCase().includes(e.target.value.toLowerCase())).slice(0,5):[]);}} onKeyDown={e=>e.key==="Enter"&&doSearch()} placeholder="e.g. barber, cleaner, tutor..."/>
               </div>
               <div className="hero-divider"/>
               <div className="hero-search-field" style={{flex:1}}>
                 <label>Where?</label>
-                <input value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doSearch()} placeholder="City or postcode"/>
+                <input value={location} onChange={e=>setLocation(e.target.value)} onKeyDown={e=>e.key==="Enter"&&doSearch()} placeholder="Lagos, Abuja..."/>
               </div>
               <button className="btn btn-orange btn-lg" style={{margin:"4px",flexShrink:0}} onClick={doSearch}>Search</button>
             </div>
             {suggests.length>0&&(
               <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,background:"white",border:"1px solid var(--border)",borderRadius:"var(--radius)",boxShadow:"var(--shadow-lg)",zIndex:50,overflow:"hidden"}}>
-                {suggests.map(s=>(
-                  <div key={s} style={{padding:"12px 20px",cursor:"pointer",fontSize:14,fontWeight:500,borderBottom:"1px solid var(--border)"}} onMouseDown={()=>{setService(s);setSuggests([]);}} onMouseEnter={e=>e.currentTarget.style.background="var(--bone)"} onMouseLeave={e=>e.currentTarget.style.background="white"}>
-                    🔍 {s}
-                  </div>
-                ))}
+                {suggests.map(s=><div key={s} style={{padding:"12px 20px",cursor:"pointer",fontSize:14,fontWeight:500,borderBottom:"1px solid var(--border)"}} onMouseDown={()=>{setService(s);setSuggests([]);}} onMouseEnter={e=>e.currentTarget.style.background="var(--bone)"} onMouseLeave={e=>e.currentTarget.style.background="white"}>🔍 {s}</div>)}
               </div>
             )}
           </div>
           <div className="hero-stats">
-            <div className="hero-stat"><strong>2,800+</strong>Jobs completed</div>
+            <div className="hero-stat"><strong>2,800+</strong>Jobs done</div>
             <div className="hero-stat"><strong>500+</strong>Trusted taskers</div>
-            <div className="hero-stat"><strong>4.9★</strong>Average rating</div>
-            <div className="hero-stat"><strong>32</strong>Neighbourhoods</div>
+            <div className="hero-stat"><strong>4.9★</strong>Avg rating</div>
+            <div className="hero-stat"><strong>Lagos</strong>& growing</div>
           </div>
         </div>
       </section>
 
       <div className="page-wrap" style={{paddingTop:64}}>
-
         {/* BENTO CATEGORIES */}
         <section className="section">
           <div className="section-header">
@@ -554,16 +637,21 @@ function HomePage({navigate,onSearch,taskers,showToast}) {
             <button className="btn btn-ghost btn-sm" onClick={()=>onSearch({service:"",location:""})}>View all →</button>
           </div>
           <div className="bento-grid">
-            {CATEGORIES.map((cat,i)=>(
-              <div key={cat.label} className={`bento-cell${cat.span===" large"||cat.span==="large"?" bento-large":cat.span==="wide"?" bento-wide":""}`} style={{background:cat.grad}} onClick={()=>onSearch({service:cat.label,location:""})}>
-                <div className="bento-cell-inner">
-                  <div className="bento-icon-wrap">{cat.icon}</div>
-                  <div className="bento-arrow">→</div>
-                  <div className="bento-label">{cat.label}</div>
-                  <div className="bento-sub">{cat.count} taskers nearby</div>
+            {CATEGORIES.slice(0,8).map((cat,i)=>{
+              const isLarge = i===0;
+              const isWide = i===3;
+              return (
+                <div key={cat.label} className={`bento-cell${isLarge?" bento-large":isWide?" bento-wide":""}`} onClick={()=>onSearch({service:cat.label,location:""})}>
+                  <div style={{position:"absolute",inset:0}} dangerouslySetInnerHTML={{__html:getCatImg(cat.label)}}/>
+                  <div className="bento-overlay"/>
+                  <div className="bento-cell-inner">
+                    <div className="bento-arrow">→</div>
+                    <div className="bento-label">{cat.label}</div>
+                    <div className="bento-sub">{cat.count} taskers</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -575,10 +663,10 @@ function HomePage({navigate,onSearch,taskers,showToast}) {
               <h2 className="section-title">Top rated near you</h2>
               <p className="section-sub">Verified professionals your neighbours already trust.</p>
             </div>
-            <button className="btn btn-ghost btn-sm" onClick={()=>onSearch({service:"",location:""})}>See all taskers →</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>onSearch({service:"",location:""})}>See all →</button>
           </div>
           <div className="card-grid-4">
-            {taskers.slice(0,8).map(t=>(
+            {featuredTaskers.map(t=>(
               <TaskerCard key={t.id} tasker={t} onClick={()=>navigate("profile",{tasker:t})}/>
             ))}
           </div>
@@ -589,14 +677,9 @@ function HomePage({navigate,onSearch,taskers,showToast}) {
           <div style={{textAlign:"center",marginBottom:48}}>
             <div className="section-label" style={{justifyContent:"center"}}>Process</div>
             <h2 className="section-title">How Street Tasker works</h2>
-            <p className="section-sub" style={{margin:"10px auto 0",textAlign:"center"}}>Get any job done in three simple steps.</p>
           </div>
           <div className="hiw-grid">
-            {[
-              {num:"01",icon:"🔍",color:"var(--orange-glow)",iconBg:"var(--orange)",title:"Find a service",desc:"Search by what you need or browse categories. Filter by rating, price, and distance to find the perfect tasker."},
-              {num:"02",icon:"⭐",color:"var(--teal-soft)",iconBg:"var(--teal)",title:"Choose a trusted tasker",desc:"Browse verified profiles with real reviews from your neighbours. Every tasker is checked and rated by the community."},
-              {num:"03",icon:"✅",color:"var(--orange-glow)",iconBg:"var(--ink)",title:"Book & get it done",desc:"Message directly via WhatsApp, confirm the details and get your task completed. Pay the tasker directly."},
-            ].map((step,i)=>(
+            {[{num:"01",icon:"🔍",color:"var(--orange-glow)",title:"Find a service",desc:"Search by what you need or browse categories. Filter by rating, price, and distance."},{num:"02",icon:"⭐",color:"var(--teal-soft)",title:"Choose a trusted tasker",desc:"Browse verified profiles with real reviews from your neighbours."},{num:"03",icon:"✅",color:"var(--orange-glow)",title:"Book & get it done",desc:"Message directly via WhatsApp, confirm and get your task completed. Pay the tasker directly."}].map((step,i)=>(
               <div key={i} className="hiw-card">
                 <div className="hiw-num">{step.num}</div>
                 <div className="hiw-icon" style={{background:step.color}}><span style={{fontSize:26}}>{step.icon}</span></div>
@@ -607,14 +690,13 @@ function HomePage({navigate,onSearch,taskers,showToast}) {
           </div>
         </section>
 
-        {/* MAP SECTION */}
+        {/* MAP */}
         <section className="section">
           <div className="map-section">
-            <div className="map-overlay"/>
             <div className="map-grid-lines"/>
             <div className="map-inner">
               <div className="map-sidebar">
-                <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,107,53,.15)",border:"1px solid rgba(255,107,53,.3)",borderRadius:99,padding:"5px 14px",fontSize:12,fontWeight:700,color:"var(--orange)",marginBottom:20}}>📍 Live map</div>
+                <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,107,53,.15)",border:"1px solid rgba(255,107,53,.3)",borderRadius:99,padding:"5px 14px",fontSize:12,fontWeight:700,color:"var(--orange)",marginBottom:18}}>📍 Live map</div>
                 <h2>Taskers in<br/>your area</h2>
                 <p>Hundreds of skilled professionals are ready to help right now. Hover over any pin to see who's nearby.</p>
                 <button className="btn btn-orange" onClick={()=>onSearch({service:"",location:""})}>Browse all taskers →</button>
@@ -623,22 +705,21 @@ function HomePage({navigate,onSearch,taskers,showToast}) {
                 {MAP_PINS.map((pin,i)=>(
                   <div key={i} className="map-pin" style={{left:pin.x,top:pin.y}}>
                     <div className="map-pin-card">
-                      <div className="map-pin-card-name">{pin.tasker.name}</div>
+                      <div className="map-pin-card-name">{pin.tasker.business||pin.tasker.name}</div>
                       <div className="map-pin-card-cat">{pin.tasker.category}</div>
-                      <div style={{fontSize:11,color:"var(--mist)"}}>from £{pin.tasker.price}/hr</div>
+                      <div style={{fontSize:11,color:"var(--mist)"}}>from {fmt(pin.tasker.price)}</div>
                     </div>
-                    <div className="map-pin-dot" style={{background:i%2===0?"var(--orange)":"var(--teal)"}}>{pin.tasker.emoji}</div>
+                    <div className="map-pin-dot" style={{background:i%2===0?"var(--orange)":"var(--teal)"}}>{pin.tasker.category[0]}</div>
                     <div className="map-pin-tail"/>
                   </div>
                 ))}
-                {/* Grid decoration */}
-                <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
+                <div style={{position:"absolute",inset:0,backgroundImage:"radial-gradient(circle,rgba(255,255,255,.04) 1px,transparent 1px)",backgroundSize:"40px 40px"}}/>
               </div>
             </div>
           </div>
         </section>
 
-        {/* TESTIMONIALS */}
+        {/* REVIEWS */}
         <section className="section">
           <div style={{textAlign:"center",marginBottom:48}}>
             <div className="section-label" style={{justifyContent:"center"}}>Reviews</div>
@@ -650,10 +731,10 @@ function HomePage({navigate,onSearch,taskers,showToast}) {
                 <div className="review-quote">"</div>
                 <p className="review-text">{r.text}</p>
                 <div className="review-author">
-                  <div className="review-avatar" style={{background:`hsl(${i*60},60%,85%)`}}>{r.avatar}</div>
+                  <div className="review-avatar" style={{background:`hsl(${i*60},55%,85%)`}}>{r.avatar}</div>
                   <div>
-                    <div className="review-name">{r.name}</div>
-                    <div className="review-meta">{r.service} · {"⭐".repeat(r.stars)}</div>
+                    <div style={{fontWeight:700,fontSize:14}}>{r.name}</div>
+                    <div style={{fontSize:12,color:"var(--mist)"}}>{r.service} · {"⭐".repeat(r.stars)}</div>
                   </div>
                 </div>
               </div>
@@ -661,16 +742,16 @@ function HomePage({navigate,onSearch,taskers,showToast}) {
           </div>
         </section>
 
-        {/* BECOME A TASKER CTA */}
+        {/* CTA */}
         <section className="section">
           <div className="cta-banner">
             <div className="cta-banner-text">
               <h2>Start earning in your neighbourhood</h2>
-              <p>Join 500+ taskers who are already making money doing what they love — right where they live.</p>
+              <p>Join 500+ taskers already making money doing what they love — right where they live.</p>
             </div>
             <div className="cta-banner-actions">
-              <button className="btn btn-glass btn-lg" onClick={()=>navigate("become")}>Start earning →</button>
-              <button className="btn btn-lg" style={{background:"rgba(255,255,255,0.2)",color:"white",border:"1.5px solid rgba(255,255,255,0.4)"}} onClick={()=>navigate("search")}>Find a tasker</button>
+              <button className="btn btn-lg" style={{background:"rgba(255,255,255,.2)",color:"white",border:"1.5px solid rgba(255,255,255,.4)"}} onClick={()=>navigate("become")}>Start earning →</button>
+              <button className="btn btn-lg" style={{background:"rgba(255,255,255,0.15)",color:"white",border:"1.5px solid rgba(255,255,255,.25)"}} onClick={()=>navigate("pricing")}>View plans</button>
             </div>
           </div>
         </section>
@@ -680,47 +761,23 @@ function HomePage({navigate,onSearch,taskers,showToast}) {
       <footer className="footer">
         <div style={{maxWidth:"var(--page-max)",margin:"0 auto"}}>
           <div className="footer-top">
-            <div className="footer-brand">
-              <div className="nav-logo" style={{marginBottom:0}}>
+            <div>
+              <div className="nav-logo" style={{marginBottom:14}}>
                 <div className="nav-logo-icon">⚡</div>
                 <div className="nav-logo-text" style={{color:"white"}}>Street<span>Tasker</span></div>
               </div>
-              <p>Connecting local communities with trusted service professionals. Your neighbourhood, working together.</p>
-              <div className="footer-socials" style={{marginTop:20}}>
+              <p style={{fontSize:14,color:"rgba(255,255,255,.45)",lineHeight:1.7,maxWidth:260}}>Connecting local communities with trusted service professionals across Nigeria.</p>
+              <div style={{display:"flex",gap:10,marginTop:18}}>
                 {["𝕏","f","in","ig"].map((s,i)=><button key={i} className="social-btn">{s}</button>)}
               </div>
             </div>
-            <div className="footer-col">
-              <h4>Platform</h4>
-              <div className="footer-links">
-                <a href="#">Browse services</a>
-                <a href="#">Become a tasker</a>
-                <a href="#">How it works</a>
-                <a href="#">Pricing</a>
-              </div>
-            </div>
-            <div className="footer-col">
-              <h4>Company</h4>
-              <div className="footer-links">
-                <a href="#">About us</a>
-                <a href="#">Blog</a>
-                <a href="#">Careers</a>
-                <a href="#">Contact</a>
-              </div>
-            </div>
-            <div className="footer-col">
-              <h4>Legal</h4>
-              <div className="footer-links">
-                <a href="#">Terms of service</a>
-                <a href="#">Privacy policy</a>
-                <a href="#">Cookie policy</a>
-                <a href="#">Safety</a>
-              </div>
-            </div>
+            <div className="footer-col"><h4>Platform</h4><div className="footer-links"><a href="#">Browse services</a><a href="#">Become a tasker</a><a href="#">How it works</a><a href="#">Pricing</a></div></div>
+            <div className="footer-col"><h4>Company</h4><div className="footer-links"><a href="#">About us</a><a href="#">Blog</a><a href="#">Careers</a><a href="#">Contact</a></div></div>
+            <div className="footer-col"><h4>Legal</h4><div className="footer-links"><a href="#">Terms</a><a href="#">Privacy</a><a href="#">Cookie policy</a><a href="#">Safety</a></div></div>
           </div>
           <div className="footer-bottom">
             <span>© 2025 Street Tasker. All rights reserved.</span>
-            <span style={{color:"rgba(255,255,255,.3)"}}>Made with ❤️ for local communities</span>
+            <span style={{color:"rgba(255,255,255,.25)"}}>Made with ❤️ for Nigerian communities</span>
           </div>
         </div>
       </footer>
@@ -728,57 +785,65 @@ function HomePage({navigate,onSearch,taskers,showToast}) {
   );
 }
 
-// ─── TASKER CARD ──────────────────────────────────────────────────────────────
+// ─── TASKER CARD ─────────────────────────────────────────────────────────────
 function TaskerCard({tasker,onClick}) {
-  const [hov,setHov] = useState(false);
   return (
-    <div className="tasker-card" onClick={onClick} onMouseEnter={()=>setHov(true)} onMouseLeave={()=>setHov(false)}>
+    <div className="tasker-card" onClick={onClick}>
       <div className="tasker-card-cover">
-        <div className="tasker-cover-bg" style={{background:tasker.grad}}>{tasker.emoji}</div>
-        <div className="tasker-badge">from £{tasker.price}</div>
-        <div className="tasker-verified">✓ Verified</div>
+        {tasker.coverImg
+          ? <div className="tasker-cover-bg"><img src={tasker.coverImg} alt={tasker.business}/></div>
+          : <div className="tasker-cover-bg" dangerouslySetInnerHTML={{__html:getBizImg(tasker.category)}}/>
+        }
+        <div className="tasker-badge">from {fmt(tasker.price)}</div>
+        {tasker.plan==="elite"
+          ? <div className="tasker-elite">⚡ Elite</div>
+          : <div className="tasker-verified">✓ Verified</div>
+        }
       </div>
       <div className="tasker-body">
         <div className="tasker-cat">{tasker.category}</div>
         <div className="tasker-name">{tasker.business||tasker.name}</div>
-        <div className="tasker-meta">
-          <span>📍 {tasker.location}</span>
-          <span>{tasker.services?.length||0} services</span>
-        </div>
-        <div className="tasker-rating">
+        <div className="tasker-meta"><span>📍 {tasker.location}</span><span>{tasker.services?.length||0} services</span></div>
+        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8}}>
           <span className="stars">{"★".repeat(Math.round(tasker.rating))}</span>
-          <span>{tasker.rating}</span>
-          <span style={{color:"var(--mist)",fontWeight:400,fontSize:12}}>({tasker.reviews} reviews)</span>
+          <span style={{fontSize:13,fontWeight:700}}>{tasker.rating}</span>
+          <span style={{fontSize:12,color:"var(--mist)"}}>({tasker.reviews})</span>
         </div>
         <div className="tasker-price">
-          <span className="tasker-price-val">£{tasker.price}<span>/hr</span></span>
-          <button className="btn btn-orange btn-sm" onClick={e=>{e.stopPropagation();onClick();}}>View Profile →</button>
+          <span className="tasker-price-val">{fmt(tasker.price)}<span>/hr</span></span>
+          <button className="btn btn-orange btn-sm" onClick={e=>{e.stopPropagation();onClick();}}>View →</button>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── SEARCH PAGE ──────────────────────────────────────────────────────────────
+// ─── SEARCH PAGE ─────────────────────────────────────────────────────────────
 function SearchPage({navigate,taskers,initial}) {
   const [service,setService] = useState(initial.service||"");
   const [location,setLocation] = useState(initial.location||"");
   const [activeFilter,setActiveFilter] = useState(initial.service||"");
   const [sortBy,setSortBy] = useState("rating");
-  const [maxPrice,setMaxPrice] = useState("");
 
   const filtered = taskers.filter(t=>{
     const ms = !activeFilter||t.category.toLowerCase().includes(activeFilter.toLowerCase())||t.business?.toLowerCase().includes(activeFilter.toLowerCase())||t.name.toLowerCase().includes(activeFilter.toLowerCase());
     const ml = !location||t.location.toLowerCase().includes(location.toLowerCase());
-    const mp = !maxPrice||t.price<=Number(maxPrice);
-    return ms&&ml&&mp;
-  }).sort((a,b)=>sortBy==="rating"?b.rating-a.rating:sortBy==="price"?a.price-b.price:b.reviews-a.reviews);
+    return ms&&ml;
+  }).sort((a,b)=>{
+    if(a.plan==="elite"&&b.plan!=="elite") return -1;
+    if(b.plan==="elite"&&a.plan!=="elite") return 1;
+    return sortBy==="rating"?b.rating-a.rating:sortBy==="price"?a.price-b.price:b.reviews-a.reviews;
+  });
 
   return (
     <div className="page-wrap" style={{paddingTop:40,paddingBottom:80}}>
+      {filtered.some(t=>t.plan==="elite")&&(
+        <div style={{background:"linear-gradient(135deg,rgba(255,107,53,.08),rgba(15,168,154,.08))",border:"1px solid rgba(255,107,53,.2)",borderRadius:"var(--radius)",padding:"12px 20px",marginBottom:20,fontSize:13,display:"flex",alignItems:"center",gap:10}}>
+          <span>⚡</span><span><strong>Elite taskers</strong> are featured at the top of results for maximum visibility.</span>
+        </div>
+      )}
       <h1 style={{fontFamily:"'Fraunces',serif",fontSize:"clamp(28px,4vw,42px)",marginBottom:4}}>Find a tasker</h1>
-      <p style={{color:"var(--mist)",marginBottom:32}}>{filtered.length} tasker{filtered.length!==1?"s":""} found</p>
-
+      <p style={{color:"var(--mist)",marginBottom:24}}>{filtered.length} tasker{filtered.length!==1?"s":""} found</p>
       <div className="filter-bar">
         <div className="input-wrap" style={{flex:2}}>
           <label className="input-label">Service or name</label>
@@ -786,11 +851,7 @@ function SearchPage({navigate,taskers,initial}) {
         </div>
         <div className="input-wrap" style={{flex:1}}>
           <label className="input-label">Location</label>
-          <input className="input" placeholder="Area or postcode..." value={location} onChange={e=>setLocation(e.target.value)}/>
-        </div>
-        <div className="input-wrap" style={{minWidth:120}}>
-          <label className="input-label">Max price (£/hr)</label>
-          <input className="input" type="number" placeholder="Any" value={maxPrice} onChange={e=>setMaxPrice(e.target.value)}/>
+          <input className="input" placeholder="Lagos, Abuja..." value={location} onChange={e=>setLocation(e.target.value)}/>
         </div>
         <div className="input-wrap" style={{minWidth:130}}>
           <label className="input-label">Sort by</label>
@@ -800,150 +861,147 @@ function SearchPage({navigate,taskers,initial}) {
             <option value="reviews">Most reviews</option>
           </select>
         </div>
-        <button className="btn btn-orange" onClick={()=>setActiveFilter(service)}>Filter</button>
-        <button className="btn btn-ghost" onClick={()=>{setService("");setLocation("");setActiveFilter("");setMaxPrice("");}}>Clear</button>
+        <button className="btn btn-orange" onClick={()=>setActiveFilter(service)}>Search</button>
+        <button className="btn btn-ghost" onClick={()=>{setService("");setLocation("");setActiveFilter("");}}>Clear</button>
       </div>
-
-      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:32}}>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:28}}>
         {CATEGORIES.map(cat=>(
-          <button key={cat.label} className={`btn btn-sm ${activeFilter===cat.label?"btn-orange":"btn-ghost"}`}
-            onClick={()=>{setService(cat.label);setActiveFilter(cat.label);}}>
-            {cat.icon} {cat.label}
-          </button>
+          <button key={cat.label} className={`btn btn-sm ${activeFilter===cat.label?"btn-orange":"btn-ghost"}`} onClick={()=>{setService(cat.label);setActiveFilter(cat.label);}}>{cat.label}</button>
         ))}
       </div>
-
-      {filtered.length===0 ? (
-        <div className="empty"><div className="empty-icon">🔍</div><h3 style={{fontFamily:"'Fraunces',serif",marginBottom:8}}>No taskers found</h3><p>Try different filters or clear and start fresh.</p></div>
-      ):(
-        <div className="card-grid-4">{filtered.map(t=><TaskerCard key={t.id} tasker={t} onClick={()=>navigate("profile",{tasker:t})}/>)}</div>
-      )}
+      {filtered.length===0
+        ? <div className="empty"><div className="empty-icon">🔍</div><h3 style={{fontFamily:"'Fraunces',serif",marginBottom:8}}>No taskers found</h3><p>Try different filters.</p></div>
+        : <div className="card-grid-4">{filtered.map(t=><TaskerCard key={t.id} tasker={t} onClick={()=>navigate("profile",{tasker:t})}/>)}</div>
+      }
     </div>
   );
 }
 
-// ─── PROFILE PAGE ─────────────────────────────────────────────────────────────
-function ProfilePage({tasker,navigate,showToast}) {
+// ─── PROFILE PAGE ────────────────────────────────────────────────────────────
+function ProfilePage({tasker,navigate,showToast,onBook}) {
   const [cf,setCf] = useState({name:"",email:"",message:""});
   const [sending,setSending] = useState(false);
   const [sent,setSent] = useState(false);
   const [cfErrors,setCfErrors] = useState({});
+  const [booked,setBooked] = useState(false);
 
   if(!tasker) return <div className="page-wrap"><p style={{color:"var(--mist)",padding:"60px 0"}}>Tasker not found.</p></div>;
 
-  const validateCf = () => {
-    const e={};
-    if(!cf.name.trim()) e.name="Name required.";
-    if(!/\S+@\S+\.\S+/.test(cf.email)) e.email="Valid email required.";
-    if(!cf.message.trim()) e.message="Please write a message.";
-    return e;
-  };
-
   const handleWhatsApp = () => {
-    submitToFormspree({_subject:`💬 WhatsApp Tap — ${tasker.business||tasker.name}`,form_type:"whatsapp_tap",tasker_name:tasker.business||tasker.name});
     const msg = encodeURIComponent(`Hi ${tasker.business||tasker.name}! I found you on Street Tasker and would like to enquire about your services.`);
     window.open(`https://wa.me/${tasker.contactWhatsapp?.replace(/\D/g,"")}?text=${msg}`,"_blank");
   };
 
+  const handleBook = () => {
+    const ok = onBook(tasker);
+    if(ok) { setBooked(true); showToast("Booking confirmed! ✓"); }
+  };
+
   const handleContact = async () => {
-    const e = validateCf();
+    const e={};
+    if(!cf.name.trim()) e.name="Name required.";
+    if(!/\S+@\S+\.\S+/.test(cf.email)) e.email="Valid email required.";
+    if(!cf.message.trim()) e.message="Message required.";
     if(Object.keys(e).length){setCfErrors(e);return;}
     setSending(true);
-    const result = await submitToFormspree({_subject:`📩 Enquiry for ${tasker.business||tasker.name}`,form_type:"contact",tasker_name:tasker.business||tasker.name,...cf});
+    const result = await postForm({_subject:`📩 Enquiry — ${tasker.business||tasker.name}`,form_type:"contact",tasker_name:tasker.business||tasker.name,...cf});
     setSending(false);
-    if(result.ok){setSent(true);showToast("Message sent! The tasker will be in touch. ✓");}
+    if(result.ok){setSent(true);showToast("Message sent! ✓");}
     else setCfErrors({_server:result.error});
   };
+
+  const planBadge = tasker.plan==="elite"?{label:"⚡ Elite Tasker",color:"var(--orange)"}:tasker.plan==="pro"?{label:"✓ Pro",color:"var(--teal)"}:{label:"✓ Verified",color:"var(--teal)"};
 
   return (
     <>
       <div className="profile-hero">
         <div className="profile-hero-inner">
-          <div className="profile-avatar">{tasker.emoji}</div>
-          <div className="profile-info">
+          <div className="profile-avatar">
+            {tasker.coverImg ? <img src={tasker.coverImg} alt={tasker.business}/> : <div dangerouslySetInnerHTML={{__html:getBizImg(tasker.category)}}/>}
+          </div>
+          <div style={{flex:1}}>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
-              <span className="badge badge-teal">✓ Verified</span>
-              <span className="badge badge-orange">{tasker.category}</span>
+              <span className="badge" style={{background:planBadge.color+"22",color:planBadge.color,border:`1px solid ${planBadge.color}44`}}>{planBadge.label}</span>
+              <span className="badge badge-teal">{tasker.category}</span>
             </div>
-            <h1 className="profile-name">{tasker.business||tasker.name}</h1>
-            <div className="profile-meta">
+            <h1 style={{fontFamily:"'Fraunces',serif",fontSize:"clamp(26px,4vw,40px)",color:"white",marginBottom:8}}>{tasker.business||tasker.name}</h1>
+            <div style={{display:"flex",gap:16,flexWrap:"wrap",fontSize:14,color:"rgba(255,255,255,.65)"}}>
               <span>📍 {tasker.location}</span>
-              <span className="tasker-rating" style={{color:"rgba(255,255,255,.9)"}}>
-                <span className="stars">{"★".repeat(Math.round(tasker.rating))}</span>
-                {tasker.rating} ({tasker.reviews} reviews)
+              <span style={{display:"flex",alignItems:"center",gap:6,color:"rgba(255,255,255,.9)"}}>
+                <span style={{color:"#F59E0B"}}>{"★".repeat(Math.round(tasker.rating))}</span>{tasker.rating} ({tasker.reviews} reviews)
               </span>
-              <span>from £{tasker.price}/hr</span>
+              <span>from {fmt(tasker.price)}/hr</span>
             </div>
           </div>
         </div>
       </div>
-
-      <div className="page-wrap" style={{paddingTop:40,paddingBottom:80}}>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:32,alignItems:"start"}}>
+      <div className="page-wrap" style={{paddingTop:36,paddingBottom:80}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:28,alignItems:"start"}}>
           <div>
-            {/* About */}
-            <div className="card" style={{marginBottom:24}}>
-              <h3 style={{fontFamily:"'Fraunces',serif",fontSize:20,marginBottom:14}}>About</h3>
+            <div className="card" style={{marginBottom:20}}>
+              <h3 style={{fontFamily:"'Fraunces',serif",fontSize:20,marginBottom:12}}>About</h3>
               <p style={{color:"var(--slate)",lineHeight:1.7}}>{tasker.desc||"No description yet."}</p>
             </div>
-            {/* Services */}
-            <div className="card" style={{marginBottom:24}}>
+            <div className="card" style={{marginBottom:20}}>
               <h3 style={{fontFamily:"'Fraunces',serif",fontSize:20,marginBottom:14}}>Services & Pricing</h3>
-              {(tasker.services||[]).length===0?<p style={{color:"var(--mist)"}}>No services listed yet.</p>:
+              {(tasker.services||[]).length===0?<p style={{color:"var(--mist)"}}>No services listed.</p>:
                 (tasker.services||[]).map((s,i)=>(
                   <div key={i} className="service-row">
-                    <span style={{fontWeight:500}}>{s.name}</span>
-                    <span style={{fontWeight:700,color:"var(--orange)"}}>£{s.price}</span>
+                    <div style={{display:"flex",alignItems:"center",gap:12}}>
+                      {s.img&&<img src={s.img} style={{width:44,height:44,objectFit:"cover",borderRadius:8}} alt={s.name}/>}
+                      <span style={{fontWeight:500}}>{s.name}</span>
+                    </div>
+                    <span style={{fontWeight:700,color:"var(--orange)"}}>{fmt(s.price)}</span>
                   </div>
                 ))
               }
             </div>
-            {/* Portfolio */}
             {(tasker.portfolio||[]).length>0&&(
-              <div className="card">
+              <div className="card" style={{marginBottom:20}}>
                 <h3 style={{fontFamily:"'Fraunces',serif",fontSize:20,marginBottom:14}}>Portfolio</h3>
                 <div className="gallery-grid">
                   {(tasker.portfolio||[]).map((item,i)=>(
-                    <div key={i} className="gallery-img">{typeof item==="string"&&item.length<=2?item:<img src={item} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>}</div>
+                    <div key={i} className="gallery-img">{typeof item==="string"&&item.startsWith("data:")?<img src={item} alt=""/>:typeof item==="string"&&item.length<=2?item:<img src={item} alt=""/>}</div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {(tasker.posts||[]).length>0&&(
+              <div className="card">
+                <h3 style={{fontFamily:"'Fraunces',serif",fontSize:20,marginBottom:14}}>Recent posts</h3>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+                  {(tasker.posts||[]).map((p,i)=>(
+                    <div key={i} style={{aspectRatio:"1",borderRadius:8,overflow:"hidden",background:"var(--bone)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32}}>
+                      {p.img?<img src={p.img} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>:"📸"}
+                    </div>
                   ))}
                 </div>
               </div>
             )}
           </div>
-
-          {/* Sidebar */}
-          <div style={{position:"sticky",top:"calc(var(--nav-h) + 24px)"}}>
-            <div className="card" style={{marginBottom:16}}>
-              <div style={{textAlign:"center",paddingBottom:20,borderBottom:"1px solid var(--border)",marginBottom:20}}>
-                <div style={{fontSize:32,marginBottom:8}}>{tasker.emoji}</div>
-                <div style={{fontFamily:"'Fraunces',serif",fontSize:18,marginBottom:4}}>{tasker.name}</div>
-                <div style={{fontSize:13,color:"var(--mist)"}}>{tasker.category} · {tasker.location}</div>
+          <div style={{position:"sticky",top:"calc(var(--nav-h) + 20px)"}}>
+            <div className="card" style={{marginBottom:14}}>
+              <div style={{textAlign:"center",paddingBottom:16,borderBottom:"1px solid var(--border)",marginBottom:16}}>
+                <div style={{width:64,height:64,borderRadius:14,overflow:"hidden",margin:"0 auto 10px",border:"2px solid var(--border)"}}>
+                  <div dangerouslySetInnerHTML={{__html:getBizImg(tasker.category)}} style={{width:"100%",height:"100%"}}/>
+                </div>
+                <div style={{fontFamily:"'Fraunces',serif",fontSize:17,marginBottom:3}}>{tasker.name}</div>
+                <div style={{fontSize:12,color:"var(--mist)"}}>{tasker.category} · {tasker.location}</div>
               </div>
-              {tasker.contactWhatsapp&&<button className="btn btn-whatsapp btn-full" style={{marginBottom:10}} onClick={handleWhatsApp}>💬 WhatsApp {tasker.name.split(" ")[0]}</button>}
+              {booked
+                ? <div className="success-banner" style={{textAlign:"center"}}>✓ Booking confirmed!</div>
+                : <button className="btn btn-orange btn-full" style={{marginBottom:8}} onClick={handleBook}>Book Now</button>
+              }
+              {tasker.contactWhatsapp&&<button className="btn btn-whatsapp btn-full" style={{marginBottom:8}} onClick={handleWhatsApp}>💬 WhatsApp</button>}
               {tasker.contactPhone&&<button className="btn btn-ghost btn-full" onClick={()=>window.location.href=`tel:${tasker.contactPhone}`}>📞 Call</button>}
             </div>
-            {/* Contact form */}
             <div className="card">
-              <h4 style={{fontFamily:"'Fraunces',serif",fontSize:17,marginBottom:16}}>Send an enquiry</h4>
-              {sent ? (
-                <div className="success-banner">✓ Message sent! They'll be in touch soon.</div>
-              ):(
-                <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                  <div className="input-wrap">
-                    <label className="input-label">Your name</label>
-                    <input className={`input${cfErrors.name?" err":""}`} value={cf.name} onChange={e=>setCf({...cf,name:e.target.value})} placeholder="Full name"/>
-                    {cfErrors.name&&<span className="field-err">{cfErrors.name}</span>}
-                  </div>
-                  <div className="input-wrap">
-                    <label className="input-label">Email</label>
-                    <input className={`input${cfErrors.email?" err":""}`} value={cf.email} onChange={e=>setCf({...cf,email:e.target.value})} placeholder="you@example.com"/>
-                    {cfErrors.email&&<span className="field-err">{cfErrors.email}</span>}
-                  </div>
-                  <div className="input-wrap">
-                    <label className="input-label">Message</label>
-                    <textarea className={`input${cfErrors.message?" err":""}`} value={cf.message} onChange={e=>setCf({...cf,message:e.target.value})} placeholder="What do you need?"/>
-                    {cfErrors.message&&<span className="field-err">{cfErrors.message}</span>}
-                  </div>
+              <h4 style={{fontFamily:"'Fraunces',serif",fontSize:16,marginBottom:14}}>Send an enquiry</h4>
+              {sent?<div className="success-banner">✓ Message sent!</div>:(
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  <div className="input-wrap"><label className="input-label">Your name</label><input className={`input${cfErrors.name?" err":""}`} value={cf.name} onChange={e=>setCf({...cf,name:e.target.value})} placeholder="Full name"/>{cfErrors.name&&<span className="field-err">{cfErrors.name}</span>}</div>
+                  <div className="input-wrap"><label className="input-label">Email</label><input className={`input${cfErrors.email?" err":""}`} value={cf.email} onChange={e=>setCf({...cf,email:e.target.value})} placeholder="you@email.com"/>{cfErrors.email&&<span className="field-err">{cfErrors.email}</span>}</div>
+                  <div className="input-wrap"><label className="input-label">Message</label><textarea className={`input${cfErrors.message?" err":""}`} value={cf.message} onChange={e=>setCf({...cf,message:e.target.value})} placeholder="What do you need?"/>{cfErrors.message&&<span className="field-err">{cfErrors.message}</span>}</div>
                   {cfErrors._server&&<div className="error-banner">{cfErrors._server}</div>}
                   <button className="btn btn-orange btn-full" onClick={handleContact} disabled={sending}>{sending?<><span className="spinner"/> Sending…</>:"Send message"}</button>
                 </div>
@@ -956,75 +1014,354 @@ function ProfilePage({tasker,navigate,showToast}) {
   );
 }
 
-// ─── DASHBOARD ────────────────────────────────────────────────────────────────
-function Dashboard({navigate,profile,onUpdate,showToast}) {
+// ─── ONBOARDING PAGE (step-by-step) ─────────────────────────────────────────
+function OnboardingPage({onComplete,navigate,showToast}) {
   const {user} = useAuth();
-  const [tab,setTab] = useState("info");
-  const [form,setForm] = useState({businessName:profile?.business||"",category:profile?.category||"Barber",location:profile?.location||"",description:profile?.desc||"",contactWhatsapp:profile?.contactWhatsapp||"",contactPhone:profile?.contactPhone||""});
-  const [services,setServices] = useState(profile?.services||[]);
-  const [newSvc,setNewSvc] = useState({name:"",price:""});
-  const [portfolio,setPortfolio] = useState(profile?.portfolio||[]);
+  const [step,setStep] = useState(0);
+  const [form,setForm] = useState({businessName:"",category:"Barber",location:"",description:"",phone:"",whatsapp:"",startingPrice:"",coverImg:null,workPhotos:[],services:[{name:"",price:"",img:null}]});
   const [saving,setSaving] = useState(false);
+
+  const STEPS = ["Business Info","Contact","Services","Photos","Complete"];
+
+  const nextStep = () => { if(step<STEPS.length-1) setStep(s=>s+1); };
+  const prevStep = () => { if(step>0) setStep(s=>s-1); };
+
+  const handleCoverUpload = async e => {
+    const file = e.target.files[0]; if(!file) return;
+    const data = await readFile(file);
+    setForm(f=>({...f,coverImg:data}));
+  };
+
+  const handleWorkPhotos = async e => {
+    const files = Array.from(e.target.files);
+    const datas = await Promise.all(files.map(readFile));
+    setForm(f=>({...f,workPhotos:[...f.workPhotos,...datas].slice(0,12)}));
+  };
+
+  const handleServiceImg = async (i,e) => {
+    const file = e.target.files[0]; if(!file) return;
+    const data = await readFile(file);
+    setForm(f=>{ const svcs=[...f.services]; svcs[i]={...svcs[i],img:data}; return {...f,services:svcs}; });
+  };
+
+  const handleSaveStep = async () => {
+    setSaving(true);
+    await new Promise(r=>setTimeout(r,600));
+    setSaving(false);
+    if(step===STEPS.length-2) { setStep(STEPS.length-1); }
+    else nextStep();
+  };
+
+  const handleFinish = () => onComplete(form);
+
+  return (
+    <div className="onboard-wrap">
+      <div style={{marginBottom:32}}>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:"clamp(26px,4vw,38px)",marginBottom:8}}>Set up your tasker profile</h1>
+        <p style={{color:"var(--mist)"}}>Complete all steps to go live and start getting bookings.</p>
+      </div>
+
+      {/* Stepper */}
+      <div className="stepper">
+        {STEPS.map((label,i)=>(
+          <div key={i} className="step-item">
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
+              <div className={`step-circle ${i<step?"done":i===step?"active":""}`}>{i<step?"✓":i+1}</div>
+              <div className={`step-label ${i<step?"done":i===step?"active":""}`}>{label}</div>
+            </div>
+            {i<STEPS.length-1&&<div className={`step-line ${i<step?"done":""}`}/>}
+          </div>
+        ))}
+      </div>
+
+      <div className="onboard-step card" style={{padding:"clamp(24px,4vw,40px)"}}>
+        {/* Step 0: Business Info */}
+        {step===0&&(
+          <div style={{display:"flex",flexDirection:"column",gap:18}}>
+            <h2 style={{fontFamily:"'Fraunces',serif",fontSize:22,marginBottom:4}}>Tell us about your business</h2>
+            <div className="input-wrap"><label className="input-label">Business name *</label><input className="input" value={form.businessName} onChange={e=>setForm(f=>({...f,businessName:e.target.value}))} placeholder="e.g. Emeka's Fadez"/></div>
+            <div className="input-wrap"><label className="input-label">Category *</label><select className="input" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>{CATEGORIES.map(c=><option key={c.label}>{c.label}</option>)}</select></div>
+            <div className="input-wrap"><label className="input-label">Location *</label><input className="input" value={form.location} onChange={e=>setForm(f=>({...f,location:e.target.value}))} placeholder="e.g. Surulere, Lagos"/></div>
+            <div className="input-wrap"><label className="input-label">About your business</label><textarea className="input" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="Tell clients what makes your service special..."/></div>
+            <div className="input-wrap"><label className="input-label">Starting price (₦)</label><input className="input" type="number" value={form.startingPrice} onChange={e=>setForm(f=>({...f,startingPrice:e.target.value}))} placeholder="e.g. 2500"/></div>
+          </div>
+        )}
+
+        {/* Step 1: Contact */}
+        {step===1&&(
+          <div style={{display:"flex",flexDirection:"column",gap:18}}>
+            <h2 style={{fontFamily:"'Fraunces',serif",fontSize:22,marginBottom:4}}>How can clients reach you?</h2>
+            <div className="input-wrap"><label className="input-label">WhatsApp number</label><input className="input" value={form.whatsapp} onChange={e=>setForm(f=>({...f,whatsapp:e.target.value}))} placeholder="+234 801 234 5678"/></div>
+            <div className="input-wrap"><label className="input-label">Phone number</label><input className="input" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} placeholder="+234 801 234 5678"/></div>
+            <div style={{background:"var(--teal-soft)",border:"1px solid var(--teal)",borderRadius:"var(--radius-sm)",padding:"14px 16px",fontSize:13,color:"var(--teal)"}}>
+              💬 Clients will contact you directly via WhatsApp. Make sure your number is active.
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Services */}
+        {step===2&&(
+          <div style={{display:"flex",flexDirection:"column",gap:18}}>
+            <h2 style={{fontFamily:"'Fraunces',serif",fontSize:22,marginBottom:4}}>What services do you offer?</h2>
+            {form.services.map((svc,i)=>(
+              <div key={i} style={{border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:18,display:"flex",flexDirection:"column",gap:12}}>
+                <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+                  <div className="input-wrap" style={{flex:2,minWidth:150}}>
+                    <label className="input-label">Service name</label>
+                    <input className="input" value={svc.name} onChange={e=>{ const s=[...form.services]; s[i]={...s[i],name:e.target.value}; setForm(f=>({...f,services:s})); }} placeholder="e.g. Classic Haircut"/>
+                  </div>
+                  <div className="input-wrap" style={{flex:1,minWidth:100}}>
+                    <label className="input-label">Price (₦)</label>
+                    <input className="input" type="number" value={svc.price} onChange={e=>{ const s=[...form.services]; s[i]={...s[i],price:e.target.value}; setForm(f=>({...f,services:s})); }} placeholder="2500"/>
+                  </div>
+                </div>
+                <div>
+                  <label className="input-label" style={{display:"block",marginBottom:8}}>Service photo (optional)</label>
+                  {svc.img
+                    ? <div style={{position:"relative",display:"inline-block"}}><img src={svc.img} style={{width:80,height:80,objectFit:"cover",borderRadius:8}} alt=""/><button className="upload-del" onClick={()=>{ const s=[...form.services]; s[i]={...s[i],img:null}; setForm(f=>({...f,services:s})); }}>✕</button></div>
+                    : <label className="upload-zone" style={{padding:"16px 20px",display:"inline-flex",alignItems:"center",gap:10,cursor:"pointer"}}><span>📷 Add photo</span><input type="file" accept="image/*" onChange={e=>handleServiceImg(i,e)}/></label>
+                  }
+                </div>
+                {form.services.length>1&&<button className="btn btn-sm btn-red" style={{alignSelf:"flex-start"}} onClick={()=>setForm(f=>({...f,services:f.services.filter((_,j)=>j!==i)}))}>Remove</button>}
+              </div>
+            ))}
+            <button className="btn btn-ghost btn-sm" style={{alignSelf:"flex-start"}} onClick={()=>setForm(f=>({...f,services:[...f.services,{name:"",price:"",img:null}]}))}>+ Add another service</button>
+          </div>
+        )}
+
+        {/* Step 3: Photos */}
+        {step===3&&(
+          <div style={{display:"flex",flexDirection:"column",gap:20}}>
+            <h2 style={{fontFamily:"'Fraunces',serif",fontSize:22,marginBottom:4}}>Upload your photos</h2>
+            <div>
+              <p style={{fontWeight:600,marginBottom:10}}>Business cover photo <span style={{color:"var(--mist)",fontWeight:400,fontSize:13}}>(shows on your card)</span></p>
+              {form.coverImg
+                ? <div style={{position:"relative",display:"inline-block"}}>
+                    <img src={form.coverImg} style={{width:200,height:130,objectFit:"cover",borderRadius:12}} alt="cover"/>
+                    <button className="upload-del" onClick={()=>setForm(f=>({...f,coverImg:null}))}>✕</button>
+                  </div>
+                : <label className="upload-zone" style={{maxWidth:300,display:"block"}}>
+                    <div style={{fontSize:36,marginBottom:8}}>📸</div>
+                    <div style={{fontWeight:600,marginBottom:4}}>Upload cover photo</div>
+                    <div style={{fontSize:12,color:"var(--mist)"}}>JPG, PNG — recommended 800×500px</div>
+                    <input type="file" accept="image/*" onChange={handleCoverUpload}/>
+                  </label>
+              }
+            </div>
+            <div>
+              <p style={{fontWeight:600,marginBottom:10}}>Work photos <span style={{color:"var(--mist)",fontWeight:400,fontSize:13}}>(portfolio — up to 12)</span></p>
+              <label className="upload-zone">
+                <div style={{fontSize:36,marginBottom:8}}>🖼️</div>
+                <div style={{fontWeight:600,marginBottom:4}}>Upload your work</div>
+                <div style={{fontSize:12,color:"var(--mist)"}}>Select multiple photos at once</div>
+                <input type="file" accept="image/*" multiple onChange={handleWorkPhotos}/>
+              </label>
+              {form.workPhotos.length>0&&(
+                <div className="upload-preview">
+                  {form.workPhotos.map((img,i)=>(
+                    <div key={i} className="upload-thumb-wrap">
+                      <img src={img} className="upload-thumb" alt="work"/>
+                      <button className="upload-del" onClick={()=>setForm(f=>({...f,workPhotos:f.workPhotos.filter((_,j)=>j!==i)}))}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Complete */}
+        {step===4&&(
+          <div style={{textAlign:"center",padding:"32px 0"}}>
+            <div style={{fontSize:72,marginBottom:20}}>🎉</div>
+            <h2 style={{fontFamily:"'Fraunces',serif",fontSize:28,marginBottom:12}}>You're all set!</h2>
+            <p style={{color:"var(--slate)",fontSize:16,marginBottom:8,lineHeight:1.6}}>Your profile is ready. You're on the <strong>Free plan</strong> with <strong>5 free bookings</strong>.</p>
+            <p style={{color:"var(--mist)",fontSize:14,marginBottom:28}}>Upgrade anytime to unlock more bookings and features.</p>
+            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+              <button className="btn btn-orange btn-lg" onClick={handleFinish}>Go to Dashboard →</button>
+              <button className="btn btn-ghost btn-lg" onClick={()=>navigate("pricing")}>View plans</button>
+            </div>
+          </div>
+        )}
+
+        {/* Navigation buttons */}
+        {step<STEPS.length-1&&(
+          <div style={{display:"flex",justifyContent:"space-between",marginTop:28,paddingTop:20,borderTop:"1px solid var(--border)"}}>
+            <button className="btn btn-ghost" onClick={prevStep} disabled={step===0}>← Previous</button>
+            <button className="btn btn-orange" onClick={handleSaveStep} disabled={saving}>
+              {saving?<><span className="spinner"/> Saving…</>:step===STEPS.length-2?"Finish & Preview →":"Save & Continue →"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── PROVIDER DASHBOARD ──────────────────────────────────────────────────────
+function Dashboard({navigate,tasker,onUpdate,onAddPost,showToast}) {
+  const {user} = useAuth();
+  const [tab,setTab] = useState("overview");
+  const [form,setForm] = useState({businessName:tasker?.business||"",category:tasker?.category||"Barber",location:tasker?.location||"",description:tasker?.desc||"",contactWhatsapp:tasker?.contactWhatsapp||"",contactPhone:tasker?.contactPhone||""});
+  const [services,setServices] = useState(tasker?.services||[]);
+  const [newSvc,setNewSvc] = useState({name:"",price:"",img:null});
+  const [portfolio,setPortfolio] = useState(tasker?.portfolio||[]);
+  const [saving,setSaving] = useState(false);
+  const [postCaption,setPostCaption] = useState("");
+  const [postImg,setPostImg] = useState(null);
+  const [posting,setPosting] = useState(false);
+
+  const plan = tasker?.plan||"free";
+  const bookingsUsed = tasker?.bookingsUsed||0;
+  const limit = plan==="elite"?9999:plan==="pro"?100:5;
+  const currentPlan = PLANS.find(p=>p.id===plan)||PLANS[0];
 
   const saveInfo = async () => {
     setSaving(true);
-    const result = await submitToFormspree({_subject:"🏪 Profile Update — "+form.businessName,form_type:"dashboard_update",...form,services:JSON.stringify(services)});
+    await postForm({_subject:"Profile Update",form_type:"dashboard_update",...form});
     onUpdate({business:form.businessName,category:form.category,location:form.location,desc:form.description,contactWhatsapp:form.contactWhatsapp,contactPhone:form.contactPhone,services,portfolio});
     setSaving(false);
-    if(result.ok) showToast("Profile updated! ✓");
-    else showToast("Saved locally (Formspree offline).","error");
+    showToast("Profile updated! ✓");
   };
 
-  const addService = async () => {
-    if(!newSvc.name.trim()||!newSvc.price) return;
-    const s = {id:Date.now().toString(),...newSvc,price:Number(newSvc.price)};
-    const updated = [...services,s];
-    setServices(updated);
-    setNewSvc({name:"",price:""});
-    await submitToFormspree({_subject:"🔧 New Service — "+newSvc.name,form_type:"add_service",...newSvc});
-    showToast(`"${s.name}" added!`);
+  const handlePostImg = async e => {
+    const file = e.target.files[0]; if(!file) return;
+    const data = await readFile(file);
+    setPostImg(data);
+  };
+
+  const handlePost = async () => {
+    if(!postCaption.trim()&&!postImg) return;
+    setPosting(true);
+    await new Promise(r=>setTimeout(r,500));
+    onAddPost(tasker?.id,{img:postImg,caption:postCaption});
+    setPostCaption(""); setPostImg(null); setPosting(false);
+    showToast("Post shared! ✓");
+  };
+
+  const handlePortfolioUpload = async e => {
+    const files = Array.from(e.target.files);
+    const datas = await Promise.all(files.map(readFile));
+    setPortfolio(prev=>[...prev,...datas].slice(0,24));
   };
 
   return (
-    <div className="dash-wrap">
-      <div className="dash-header">
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:12}}>
-          <div>
-            <div style={{fontSize:12,fontWeight:700,letterSpacing:".6px",textTransform:"uppercase",color:"rgba(255,255,255,.5)",marginBottom:6}}>Provider Dashboard</div>
-            <h2 style={{fontFamily:"'Fraunces',serif",color:"white",fontSize:26}}>{form.businessName||user?.name+"'s Business"}</h2>
+    <div style={{maxWidth:960,margin:"0 auto",padding:"clamp(24px,4vw,48px) clamp(20px,4vw,40px) 80px"}}>
+      {/* Header */}
+      <div style={{background:"var(--ink)",borderRadius:"var(--radius-lg)",padding:"28px 32px",marginBottom:28,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:16}}>
+        <div>
+          <div style={{fontSize:11,fontWeight:700,letterSpacing:".6px",textTransform:"uppercase",color:"rgba(255,255,255,.4)",marginBottom:6}}>Provider Dashboard</div>
+          <h2 style={{fontFamily:"'Fraunces',serif",color:"white",fontSize:24}}>{form.businessName||user?.name}</h2>
+          <div style={{display:"flex",gap:10,marginTop:8,flexWrap:"wrap"}}>
+            <span style={{background:currentPlan.color+"22",color:currentPlan.color,border:`1px solid ${currentPlan.color}44`,borderRadius:99,padding:"3px 12px",fontSize:12,fontWeight:700}}>{currentPlan.name} Plan</span>
+            <span style={{fontSize:12,color:"rgba(255,255,255,.5)"}}>{plan==="elite"?"Unlimited":bookingsUsed+"/"+limit} bookings used</span>
           </div>
-          <button className="btn btn-ghost" style={{color:"rgba(255,255,255,.7)",borderColor:"rgba(255,255,255,.2)"}} onClick={()=>navigate("home")}>← Back to home</button>
+        </div>
+        <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+          <button className="btn btn-ghost" style={{color:"rgba(255,255,255,.7)",borderColor:"rgba(255,255,255,.2)"}} onClick={()=>navigate("pricing")}>⚡ Upgrade Plan</button>
+          <button className="btn btn-ghost" style={{color:"rgba(255,255,255,.5)",borderColor:"rgba(255,255,255,.12)"}} onClick={()=>navigate("home")}>← Home</button>
         </div>
       </div>
 
+      {/* Booking bar */}
+      {plan!=="elite"&&(
+        <div className="booking-counter" style={{marginBottom:24}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:14}}>Bookings</div>
+            <div style={{fontSize:12,color:"var(--mist)"}}>
+              {bookingsUsed} of {limit} used
+              {bookingsUsed>=limit&&<span style={{color:"var(--orange)",fontWeight:700,marginLeft:8}}>— Limit reached!</span>}
+            </div>
+          </div>
+          <div style={{flex:1}}>
+            <div className="booking-bar"><div className="booking-bar-fill" style={{width:`${Math.min(100,(bookingsUsed/limit)*100)}%`}}/></div>
+          </div>
+          {bookingsUsed>=limit&&<button className="btn btn-orange btn-sm" onClick={()=>navigate("pricing")}>Upgrade</button>}
+        </div>
+      )}
+
+      {/* Tabs */}
       <div className="dash-tabs">
-        {[["info","🏪 Business Info"],["services","🔧 Services"],["portfolio","🖼️ Portfolio"]].map(([t,label])=>(
+        {[["overview","📊 Overview"],["post","📸 New Post"],["info","🏪 Business Info"],["services","🔧 Services"],["portfolio","🖼️ Portfolio"]].map(([t,label])=>(
           <button key={t} className={`dash-tab${tab===t?" active":""}`} onClick={()=>setTab(t)}>{label}</button>
         ))}
       </div>
 
+      {/* Overview */}
+      {tab==="overview"&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:16}}>
+          {[{label:"Total Bookings",val:bookingsUsed,icon:"📅"},{label:"Services Listed",val:(tasker?.services||[]).length,icon:"🔧"},{label:"Portfolio Photos",val:(tasker?.portfolio||[]).length,icon:"🖼️"},{label:"Posts",val:(tasker?.posts||[]).length,icon:"📸"}].map((stat,i)=>(
+            <div key={i} className="card" style={{textAlign:"center"}}>
+              <div style={{fontSize:32,marginBottom:10}}>{stat.icon}</div>
+              <div style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:700,marginBottom:4}}>{stat.val}</div>
+              <div style={{fontSize:13,color:"var(--mist)"}}>{stat.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* New post */}
+      {tab==="post"&&(
+        <div style={{maxWidth:560}}>
+          <div className="composer">
+            <div style={{fontWeight:600,marginBottom:12}}>Share your work</div>
+            <textarea value={postCaption} onChange={e=>setPostCaption(e.target.value)} placeholder="Write a caption... #BarberLife #Lagos"/>
+            {postImg&&(
+              <div style={{position:"relative",display:"inline-block",marginTop:12}}>
+                <img src={postImg} style={{width:200,height:140,objectFit:"cover",borderRadius:10}} alt="post"/>
+                <button className="upload-del" onClick={()=>setPostImg(null)}>✕</button>
+              </div>
+            )}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:14,paddingTop:14,borderTop:"1px solid var(--border)"}}>
+              <label style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,fontSize:13,fontWeight:600,color:"var(--slate)"}}>
+                <span style={{fontSize:20}}>📷</span> Add photo
+                <input type="file" accept="image/*" style={{display:"none"}} onChange={handlePostImg}/>
+              </label>
+              <button className="btn btn-orange" onClick={handlePost} disabled={posting||(!postCaption.trim()&&!postImg)}>{posting?<><span className="spinner"/> Posting…</>:"Share Post"}</button>
+            </div>
+          </div>
+          {(tasker?.posts||[]).length>0&&(
+            <div>
+              <h3 style={{fontFamily:"'Fraunces',serif",fontSize:18,marginBottom:16}}>Your posts</h3>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+                {(tasker.posts||[]).map((p,i)=>(
+                  <div key={i} style={{aspectRatio:"1",borderRadius:10,overflow:"hidden",background:"var(--bone)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28}}>
+                    {p.img?<img src={p.img} style={{width:"100%",height:"100%",objectFit:"cover"}} alt=""/>:"📸"}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Info */}
       {tab==="info"&&(
-        <div style={{maxWidth:580,display:"flex",flexDirection:"column",gap:16}}>
-          <div className="input-wrap"><label className="input-label">Business Name</label><input className="input" value={form.businessName} onChange={e=>setForm({...form,businessName:e.target.value})} placeholder="Your business name"/></div>
+        <div style={{maxWidth:560,display:"flex",flexDirection:"column",gap:16}}>
+          <div className="input-wrap"><label className="input-label">Business Name</label><input className="input" value={form.businessName} onChange={e=>setForm({...form,businessName:e.target.value})}/></div>
           <div className="input-wrap"><label className="input-label">Category</label><select className="input" value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{CATEGORIES.map(c=><option key={c.label}>{c.label}</option>)}</select></div>
-          <div className="input-wrap"><label className="input-label">Location</label><input className="input" value={form.location} onChange={e=>setForm({...form,location:e.target.value})} placeholder="e.g. Brixton, London"/></div>
-          <div className="input-wrap"><label className="input-label">About</label><textarea className="input" value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Tell clients about your experience…"/></div>
-          <div className="input-wrap"><label className="input-label">WhatsApp</label><input className="input" value={form.contactWhatsapp} onChange={e=>setForm({...form,contactWhatsapp:e.target.value})} placeholder="+44 7700 900000"/></div>
-          <div className="input-wrap"><label className="input-label">Phone</label><input className="input" value={form.contactPhone} onChange={e=>setForm({...form,contactPhone:e.target.value})} placeholder="+44 7700 900000"/></div>
+          <div className="input-wrap"><label className="input-label">Location</label><input className="input" value={form.location} onChange={e=>setForm({...form,location:e.target.value})} placeholder="e.g. Surulere, Lagos"/></div>
+          <div className="input-wrap"><label className="input-label">About</label><textarea className="input" value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/></div>
+          <div className="input-wrap"><label className="input-label">WhatsApp</label><input className="input" value={form.contactWhatsapp} onChange={e=>setForm({...form,contactWhatsapp:e.target.value})}/></div>
+          <div className="input-wrap"><label className="input-label">Phone</label><input className="input" value={form.contactPhone} onChange={e=>setForm({...form,contactPhone:e.target.value})}/></div>
           <button className="btn btn-orange" style={{alignSelf:"flex-start"}} onClick={saveInfo} disabled={saving}>{saving?<><span className="spinner"/> Saving…</>:"Save Changes"}</button>
         </div>
       )}
 
+      {/* Services */}
       {tab==="services"&&(
         <div style={{maxWidth:580}}>
-          <div className="card" style={{marginBottom:24}}>
-            {services.length===0?<p style={{color:"var(--mist)",textAlign:"center",padding:"16px 0"}}>No services yet. Add your first below.</p>:
-              services.map(s=>(
-                <div key={s.id} className="service-row">
-                  <span style={{fontWeight:500}}>{s.name}</span>
+          <div className="card" style={{marginBottom:20}}>
+            {services.length===0?<p style={{color:"var(--mist)",textAlign:"center",padding:"20px 0"}}>No services yet.</p>:
+              services.map((s,i)=>(
+                <div key={i} className="service-row">
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    {s.img&&<img src={s.img} style={{width:40,height:40,objectFit:"cover",borderRadius:6}} alt={s.name}/>}
+                    <span style={{fontWeight:500}}>{s.name}</span>
+                  </div>
                   <div style={{display:"flex",alignItems:"center",gap:12}}>
-                    <span style={{fontWeight:700,color:"var(--orange)"}}>£{s.price}</span>
-                    <button className="btn btn-ghost btn-sm" style={{padding:"4px 8px"}} onClick={()=>setServices(prev=>prev.filter(x=>x.id!==s.id))}>🗑️</button>
+                    <span style={{fontWeight:700,color:"var(--orange)"}}>{fmt(s.price)}</span>
+                    <button className="btn btn-ghost btn-sm" style={{padding:"3px 8px"}} onClick={()=>setServices(prev=>prev.filter((_,j)=>j!==i))}>🗑️</button>
                   </div>
                 </div>
               ))
@@ -1032,36 +1369,129 @@ function Dashboard({navigate,profile,onUpdate,showToast}) {
           </div>
           <div className="card">
             <h3 style={{fontFamily:"'Fraunces',serif",fontSize:18,marginBottom:16}}>Add a service</h3>
-            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
-              <div className="input-wrap" style={{flex:2,minWidth:160}}>
-                <label className="input-label">Service name</label>
-                <input className="input" value={newSvc.name} onChange={e=>setNewSvc({...newSvc,name:e.target.value})} placeholder="e.g. Classic Haircut"/>
-              </div>
-              <div className="input-wrap" style={{flex:1,minWidth:100}}>
-                <label className="input-label">Price (£)</label>
-                <input className="input" type="number" min="0" value={newSvc.price} onChange={e=>setNewSvc({...newSvc,price:e.target.value})} placeholder="30"/>
-              </div>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:14}}>
+              <div className="input-wrap" style={{flex:2,minWidth:150}}><label className="input-label">Service name</label><input className="input" value={newSvc.name} onChange={e=>setNewSvc({...newSvc,name:e.target.value})} placeholder="e.g. Classic Haircut"/></div>
+              <div className="input-wrap" style={{flex:1,minWidth:100}}><label className="input-label">Price (₦)</label><input className="input" type="number" value={newSvc.price} onChange={e=>setNewSvc({...newSvc,price:e.target.value})} placeholder="2500"/></div>
             </div>
-            <button className="btn btn-orange" style={{marginTop:16}} onClick={addService}>Add Service</button>
+            <div style={{marginBottom:14}}>
+              <label className="input-label" style={{display:"block",marginBottom:8}}>Service image</label>
+              {newSvc.img
+                ? <div style={{position:"relative",display:"inline-block"}}><img src={newSvc.img} style={{width:80,height:80,objectFit:"cover",borderRadius:8}} alt=""/><button className="upload-del" onClick={()=>setNewSvc({...newSvc,img:null})}>✕</button></div>
+                : <label className="upload-zone" style={{padding:"14px 20px",display:"inline-flex",alignItems:"center",gap:8,cursor:"pointer",fontSize:13}}><span>📷 Add image</span><input type="file" accept="image/*" onChange={async e=>{ const f=e.target.files[0]; if(f){ const d=await readFile(f); setNewSvc(n=>({...n,img:d})); }}}/></label>
+              }
+            </div>
+            <button className="btn btn-orange" onClick={()=>{ if(!newSvc.name.trim()||!newSvc.price) return; setServices(p=>[...p,{id:Date.now().toString(),...newSvc,price:Number(newSvc.price)}]); setNewSvc({name:"",price:"",img:null}); showToast("Service added!"); }}>Add Service</button>
           </div>
         </div>
       )}
 
+      {/* Portfolio */}
       {tab==="portfolio"&&(
         <div>
-          <p style={{color:"var(--mist)",marginBottom:24}}>Add work samples to your portfolio.</p>
-          <div className="gallery-grid" style={{marginBottom:24}}>
-            {portfolio.map((item,i)=>(
-              <div key={i} className="gallery-img">
-                {typeof item==="string"&&item.length<=2?item:<img src={item} alt="work" style={{width:"100%",height:"100%",objectFit:"cover"}}/>}
-                <button className="del-btn" onClick={()=>setPortfolio(prev=>prev.filter((_,j)=>j!==i))}>✕</button>
-              </div>
-            ))}
-            <div className="gallery-img" style={{border:"2px dashed var(--border)",background:"transparent",flexDirection:"column",gap:8,color:"var(--mist)",fontSize:13,cursor:"pointer"}} onClick={()=>{const emojis=["✂️","💅","🔧","⚡","🧹","📚","💄","👑","✨","🌟"];setPortfolio(prev=>[...prev,emojis[Math.floor(Math.random()*emojis.length)]]);}}>
-              <span style={{fontSize:24}}>+</span><span>Add image</span>
+          <p style={{color:"var(--mist)",marginBottom:20}}>Upload photos of your work to show clients what you can do.</p>
+          <label className="upload-zone" style={{maxWidth:400,display:"block",marginBottom:20}}>
+            <div style={{fontSize:36,marginBottom:8}}>📸</div>
+            <div style={{fontWeight:600,marginBottom:4}}>Upload work photos</div>
+            <div style={{fontSize:12,color:"var(--mist)"}}>Select multiple images at once</div>
+            <input type="file" accept="image/*" multiple onChange={handlePortfolioUpload}/>
+          </label>
+          {portfolio.length>0&&(
+            <div className="gallery-grid">
+              {portfolio.map((item,i)=>(
+                <div key={i} className="gallery-img">
+                  {typeof item==="string"&&item.startsWith("data:")?<img src={item} alt="work" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:typeof item==="string"&&item.length<=2?item:<img src={item} alt="work" style={{width:"100%",height:"100%",objectFit:"cover"}}/>}
+                  <button className="del-btn" onClick={()=>setPortfolio(prev=>prev.filter((_,j)=>j!==i))}>✕</button>
+                </div>
+              ))}
             </div>
-          </div>
-          <button className="btn btn-orange" onClick={saveInfo} disabled={saving}>{saving?<><span className="spinner"/> Saving…</>:"Save Portfolio"}</button>
+          )}
+          <button className="btn btn-orange" style={{marginTop:20}} onClick={()=>{ onUpdate({portfolio}); showToast("Portfolio saved! ✓"); }}>Save Portfolio</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── CLIENT DASHBOARD (Instagram-style feed) ─────────────────────────────────
+function ClientDashboard({navigate,posts,taskers,onLike,onComment,showToast}) {
+  const {user} = useAuth();
+  const [commentInputs,setCommentInputs] = useState({});
+
+  const handleComment = (postId) => {
+    const text = commentInputs[postId]||"";
+    if(!text.trim()) return;
+    onComment(postId,text);
+    setCommentInputs(prev=>({...prev,[postId]:""}));
+  };
+
+  const eliteTaskers = taskers.filter(t=>t.plan==="elite");
+
+  return (
+    <div style={{maxWidth:900,margin:"0 auto",padding:"clamp(24px,4vw,48px) clamp(20px,4vw,40px) 80px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:28,flexWrap:"wrap",gap:12}}>
+        <div>
+          <h1 style={{fontFamily:"'Fraunces',serif",fontSize:"clamp(24px,3vw,32px)"}}>Welcome, {user?.name} 👋</h1>
+          <p style={{color:"var(--mist)",fontSize:14,marginTop:4}}>See what taskers in your area are up to</p>
+        </div>
+        <button className="btn btn-orange" onClick={()=>navigate("search")}>Find a Tasker →</button>
+      </div>
+
+      {/* Stories-style elite row */}
+      {eliteTaskers.length>0&&(
+        <div style={{display:"flex",gap:16,overflowX:"auto",paddingBottom:8,marginBottom:28}}>
+          {eliteTaskers.map(t=>(
+            <div key={t.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,flexShrink:0,cursor:"pointer"}} onClick={()=>navigate("profile",{tasker:t})}>
+              <div style={{width:64,height:64,borderRadius:"50%",overflow:"hidden",border:"3px solid var(--orange)",padding:2}}>
+                <div style={{width:"100%",height:"100%",borderRadius:"50%",overflow:"hidden"}} dangerouslySetInnerHTML={{__html:getBizImg(t.category)}}/>
+              </div>
+              <span style={{fontSize:11,fontWeight:600,maxWidth:70,textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{t.business||t.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {posts.length===0?(
+        <div className="empty"><div className="empty-icon">📸</div><h3 style={{fontFamily:"'Fraunces',serif",marginBottom:8}}>No posts yet</h3><p>Taskers haven't posted any updates yet. Check back soon!</p></div>
+      ):(
+        <div className="feed-grid">
+          {posts.map(post=>{
+            const t = taskers.find(tk=>tk.id===post.taskerId);
+            return (
+              <div key={post.id} className="feed-card">
+                <div className="feed-card-header">
+                  <div className="feed-avatar" style={{cursor:"pointer"}} onClick={()=>t&&navigate("profile",{tasker:t})}>
+                    <div dangerouslySetInnerHTML={{__html:getBizImg(post.taskerCategory||"Barber")}}/>
+                  </div>
+                  <div>
+                    <div style={{fontWeight:700,fontSize:14,cursor:"pointer"}} onClick={()=>t&&navigate("profile",{tasker:t})}>{post.taskerName}</div>
+                    <div style={{fontSize:11,color:"var(--mist)"}}>{post.taskerCategory} · {t?.location||"Lagos"}</div>
+                  </div>
+                  {t?.plan==="elite"&&<span style={{marginLeft:"auto",fontSize:11,fontWeight:700,color:"var(--orange)",background:"var(--orange-glow)",padding:"3px 8px",borderRadius:99}}>⚡ Elite</span>}
+                </div>
+                <div className="feed-img">
+                  {post.img?<img src={post.img} alt="post"/>:<span style={{opacity:.4}}>📸</span>}
+                </div>
+                <div className="feed-actions">
+                  <button className="feed-action-btn" onClick={()=>onLike(post.id)}>{post.liked?"❤️":"🤍"}</button>
+                  <button className="feed-action-btn">💬</button>
+                  <button className="feed-action-btn">🔗</button>
+                </div>
+                <div className="feed-likes">{post.likes} like{post.likes!==1?"s":""}</div>
+                {post.caption&&<div className="feed-caption"><strong>{post.taskerName}</strong> {post.caption}</div>}
+                {post.comments.length>0&&(
+                  <div className="feed-comments">
+                    {post.comments.slice(-2).map((c,i)=>(
+                      <div key={i} className="feed-comment"><strong>{c.user}</strong> {c.text}</div>
+                    ))}
+                  </div>
+                )}
+                <div className="feed-add-comment">
+                  <input value={commentInputs[post.id]||""} onChange={e=>setCommentInputs(prev=>({...prev,[post.id]:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&handleComment(post.id)} placeholder="Add a comment…"/>
+                  <button className="feed-post-btn" onClick={()=>handleComment(post.id)}>Post</button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1078,18 +1508,18 @@ function AuthPage({mode,setMode,onLogin,onRegister,navigate}) {
   const validate = () => {
     const e={};
     if(!/\S+@\S+\.\S+/.test(form.email)) e.email="Valid email required.";
-    if(!form.password||form.password.length<6) e.password="At least 6 characters.";
-    if(mode==="register"){if(!form.name.trim())e.name="Full name required.";if(form.role==="provider"&&!form.businessName.trim())e.businessName="Business name required.";}
+    if(!form.password||form.password.length<6) e.password="Min. 6 characters.";
+    if(mode==="register"){if(!form.name.trim())e.name="Full name required.";}
     return e;
   };
 
   const handleSubmit = async () => {
     setServerError(""); const e=validate(); if(Object.keys(e).length){setErrors(e);return;} setErrors({}); setSubmitting(true);
     if(mode==="register"){
-      const result = await submitToFormspree({_subject:`🎉 New ${form.role==="provider"?"Tasker":"Client"} — ${form.name}`,form_type:"registration",name:form.name,email:form.email,role:form.role,business_name:form.role==="provider"?form.businessName:"N/A"});
+      const result = await postForm({_subject:`🎉 New ${form.role==="provider"?"Tasker":"Client"} — ${form.name}`,form_type:"registration",name:form.name,email:form.email,role:form.role});
       setSubmitting(false); if(!result.ok){setServerError(result.error||"Registration failed.");return;} onRegister({...form});
     } else {
-      await submitToFormspree({_subject:`🔑 Login — ${form.email}`,form_type:"login",email:form.email});
+      await postForm({_subject:`🔑 Login — ${form.email}`,form_type:"login",email:form.email});
       setSubmitting(false);
       onLogin({id:"mock_"+Date.now(),email:form.email,name:form.email.split("@")[0],role:form.email.toLowerCase().includes("provider")?"provider":"client"});
     }
@@ -1100,27 +1530,26 @@ function AuthPage({mode,setMode,onLogin,onRegister,navigate}) {
   return (
     <div className="auth-wrap">
       <div className="auth-card">
-        <div className="auth-logo">
-          <div className="nav-logo" style={{justifyContent:"center",marginBottom:12}}>
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,marginBottom:14}}>
             <div className="nav-logo-icon">⚡</div>
-            <div className="nav-logo-text">Street<span>Tasker</span></div>
+            <div className="nav-logo-text">Street<span style={{color:"var(--orange)"}}>Tasker</span></div>
           </div>
           <h2 style={{fontFamily:"'Fraunces',serif",fontSize:26,marginBottom:6}}>{mode==="login"?"Welcome back":"Join for free"}</h2>
           <p style={{color:"var(--mist)",fontSize:14}}>{mode==="login"?"Sign in to your account":"Create your account today"}</p>
         </div>
         <div className="auth-box">
-          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
             {mode==="register"&&(
               <>
-                <div className="input-wrap"><label className="input-label">Full Name</label><input {...field("name")} placeholder="Your name"/>{errors.name&&<span className="field-err">{errors.name}</span>}</div>
+                <div className="input-wrap"><label className="input-label">Full Name</label><input {...field("name")} placeholder="Your full name"/>{errors.name&&<span className="field-err">{errors.name}</span>}</div>
                 <div className="input-wrap">
                   <label className="input-label">I am a…</label>
-                  <select className="input" value={form.role} onChange={e=>{setForm({...form,role:e.target.value});setErrors({...errors,businessName:""});}}>
+                  <select className="input" value={form.role} onChange={e=>setForm({...form,role:e.target.value})}>
                     <option value="client">Client — looking for services</option>
                     <option value="provider">Tasker — offering services</option>
                   </select>
                 </div>
-                {form.role==="provider"&&<div className="input-wrap"><label className="input-label">Business Name</label><input {...field("businessName")} placeholder="Your business name"/>{errors.businessName&&<span className="field-err">{errors.businessName}</span>}</div>}
               </>
             )}
             <div className="input-wrap"><label className="input-label">Email</label><input {...field("email","email")} placeholder="you@example.com"/>{errors.email&&<span className="field-err">{errors.email}</span>}</div>
@@ -1128,12 +1557,12 @@ function AuthPage({mode,setMode,onLogin,onRegister,navigate}) {
             {serverError&&<div className="error-banner">{serverError}</div>}
             <button className="btn btn-orange btn-full btn-lg" onClick={handleSubmit} disabled={submitting}>{submitting?<><span className="spinner"/> {mode==="login"?"Signing in…":"Creating account…"}</>:mode==="login"?"Sign In":"Create Account"}</button>
             <p style={{textAlign:"center",fontSize:13,color:"var(--mist)"}}>
-              {mode==="login"?"Don't have an account? ":"Already have an account? "}
+              {mode==="login"?"No account? ":"Already have one? "}
               <span style={{color:"var(--orange)",cursor:"pointer",fontWeight:600}} onClick={()=>{setMode(mode==="login"?"register":"login");setErrors({});setServerError("");}}>
-                {mode==="login"?"Sign up":"Sign in"}
+                {mode==="login"?"Sign up free":"Sign in"}
               </span>
             </p>
-            {mode==="login"&&<p style={{textAlign:"center",fontSize:12,color:"var(--mist)",borderTop:"1px solid var(--border)",paddingTop:14}}>💡 Use an email with <strong>"provider"</strong> to demo the Tasker Dashboard</p>}
+            {mode==="login"&&<p style={{textAlign:"center",fontSize:12,color:"var(--mist)",borderTop:"1px solid var(--border)",paddingTop:12}}>💡 Use an email with <strong>"provider"</strong> to demo the Tasker Dashboard</p>}
           </div>
         </div>
       </div>
@@ -1141,14 +1570,96 @@ function AuthPage({mode,setMode,onLogin,onRegister,navigate}) {
   );
 }
 
-// ─── BECOME A TASKER PAGE ─────────────────────────────────────────────────────
-function BecomeTaskerPage({navigate,onRegister,showToast}) {
-  const perks = [
-    {icon:"💰",title:"Earn on your terms",desc:"Set your own prices, hours and service area. No minimum hours required."},
-    {icon:"🏘️",title:"Work locally",desc:"Serve clients right in your neighbourhood. No long commutes."},
-    {icon:"⭐",title:"Build your reputation",desc:"Reviews and ratings help you grow. Great work gets rewarded."},
-    {icon:"🔒",title:"Secure payments",desc:"Clients pay directly. We just connect you — no commission on earnings."},
-  ];
+// ─── PRICING PAGE ─────────────────────────────────────────────────────────────
+function PricingPage({navigate,myTasker,onSubscribe}) {
+  const {user} = useAuth();
+  const currentPlan = myTasker?.plan||"free";
+
+  return (
+    <div className="page-wrap" style={{paddingTop:56,paddingBottom:96}}>
+      <div style={{textAlign:"center",marginBottom:52}}>
+        <div className="section-label" style={{justifyContent:"center"}}>Plans & Pricing</div>
+        <h1 style={{fontFamily:"'Fraunces',serif",fontSize:"clamp(32px,5vw,54px)",marginBottom:12}}>Simple, transparent pricing</h1>
+        <p style={{color:"var(--slate)",fontSize:16,maxWidth:480,margin:"0 auto"}}>Start free. Upgrade when your business grows. All prices in Nigerian Naira.</p>
+      </div>
+      <div className="plans-grid">
+        {PLANS.map(plan=>(
+          <div key={plan.id} className={`plan-card${plan.id==="elite"?" elite-plan":""}${currentPlan===plan.id?" active":""}`}>
+            {plan.badge&&<div className="plan-badge" style={{background:plan.id==="elite"?"var(--orange)":"var(--teal)"}}>{plan.badge}</div>}
+            {currentPlan===plan.id&&<div style={{position:"absolute",top:16,right:16,fontSize:11,fontWeight:700,color:plan.color,background:plan.id==="elite"?"rgba(255,107,53,.15)":"rgba(15,168,154,.12)",padding:"3px 10px",borderRadius:99}}>Current plan</div>}
+            <div style={{color:plan.color,fontSize:13,fontWeight:700,textTransform:"uppercase",letterSpacing:".6px",marginBottom:10}}>{plan.name}</div>
+            <div className="plan-price">{plan.price===0?"Free":fmt(plan.price)}</div>
+            <div className="plan-period" style={{color:plan.id==="elite"?"rgba(255,255,255,.5)":"var(--mist)",marginBottom:24}}>{plan.period||"forever"}</div>
+            <div style={{marginBottom:24,color:plan.id==="elite"?"rgba(255,255,255,.7)":"var(--slate)",fontSize:13}}>
+              {plan.bookings===9999?"Unlimited bookings":`Up to ${plan.bookings} client bookings${plan.period?"/month":""}`}
+            </div>
+            <div style={{borderTop:`1px solid ${plan.id==="elite"?"rgba(255,255,255,.1)":"var(--border)"}`,paddingTop:20,marginBottom:24}}>
+              {plan.features.map((f,i)=>(
+                <div key={i} className="plan-feature" style={{color:plan.id==="elite"?"rgba(255,255,255,.75)":"var(--slate)"}}>{f}</div>
+              ))}
+            </div>
+            {currentPlan===plan.id
+              ? <button className="btn btn-full btn-ghost" disabled>Current Plan</button>
+              : plan.price===0
+                ? <button className="btn btn-full btn-ghost" onClick={()=>navigate("auth")}>Get Started Free</button>
+                : <button className={`btn btn-full ${plan.id==="elite"?"btn-orange":"btn-teal"}`} onClick={()=>{ if(!user){navigate("auth");return;} onSubscribe(plan); }}>
+                    Upgrade to {plan.name} — {fmt(plan.price)}/mo
+                  </button>
+            }
+          </div>
+        ))}
+      </div>
+      <div style={{textAlign:"center",marginTop:48,color:"var(--mist)",fontSize:14}}>
+        <p>🔒 Secure payment via Paystack & Flutterwave · Cancel anytime · No hidden fees</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── PAYWALL MODAL ────────────────────────────────────────────────────────────
+function PaywallModal({tasker,onClose,onSubscribe}) {
+  const plan = PLANS.find(p=>p.id===tasker?.plan)||PLANS[0];
+  return (
+    <div className="paywall-overlay" onClick={onClose}>
+      <div className="paywall-card" onClick={e=>e.stopPropagation()}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+          <h2>You've reached your booking limit</h2>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:24,cursor:"pointer",color:"var(--mist)"}}>✕</button>
+        </div>
+        <p className="paywall-sub">You're on the <strong>{plan.name} plan</strong> with {plan.bookings===9999?"unlimited":plan.bookings} booking{plan.bookings!==1?"s":""}. Upgrade to keep growing.</p>
+        <div className="booking-counter">
+          <div>
+            <div style={{fontWeight:700,fontSize:14}}>Bookings Used</div>
+            <div style={{fontSize:13,color:"var(--mist)"}}>{tasker?.bookingsUsed} / {plan.bookings===9999?"∞":plan.bookings}</div>
+          </div>
+          <div style={{flex:1}}>
+            <div className="booking-bar"><div className="booking-bar-fill" style={{width:"100%"}}/></div>
+          </div>
+          <span style={{fontSize:13,fontWeight:700,color:"var(--orange)"}}>Limit reached</span>
+        </div>
+        <div className="plans-grid" style={{gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))"}}>
+          {PLANS.filter(p=>p.id!=="free").map(p=>(
+            <div key={p.id} className={`plan-card${p.id==="elite"?" elite-plan":""}`}>
+              {p.badge&&<div className="plan-badge" style={{background:p.id==="elite"?"var(--orange)":"var(--teal)"}}>{p.badge}</div>}
+              <div style={{color:p.color,fontSize:13,fontWeight:700,marginBottom:8}}>{p.name}</div>
+              <div className="plan-price">{fmt(p.price)}</div>
+              <div className="plan-period" style={{marginBottom:16,color:p.id==="elite"?"rgba(255,255,255,.5)":"var(--mist)"}}>/month</div>
+              <div style={{fontSize:13,marginBottom:16,color:p.id==="elite"?"rgba(255,255,255,.7)":"var(--slate)"}}>
+                {p.bookings===9999?"Unlimited bookings":`${p.bookings} bookings/month`}
+              </div>
+              <button className={`btn btn-full ${p.id==="elite"?"btn-orange":"btn-teal"}`} onClick={()=>onSubscribe(p)}>
+                Upgrade — {fmt(p.price)}/mo
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── BECOME A TASKER PAGE ────────────────────────────────────────────────────
+function BecomeTaskerPage({navigate}) {
   return (
     <div>
       <div style={{background:"var(--ink)",padding:"clamp(64px,8vw,100px) clamp(20px,4vw,48px)",textAlign:"center",position:"relative",overflow:"hidden"}}>
@@ -1156,31 +1667,19 @@ function BecomeTaskerPage({navigate,onRegister,showToast}) {
         <div style={{position:"relative",zIndex:2,maxWidth:640,margin:"0 auto"}}>
           <div style={{display:"inline-flex",alignItems:"center",gap:8,background:"rgba(255,107,53,.2)",border:"1px solid rgba(255,107,53,.4)",borderRadius:99,padding:"5px 14px",fontSize:12,fontWeight:700,color:"var(--orange)",marginBottom:20}}>⚡ Join 500+ taskers</div>
           <h1 style={{fontFamily:"'Fraunces',serif",fontSize:"clamp(36px,6vw,64px)",color:"white",marginBottom:16}}>Start earning in your <em style={{color:"var(--orange)",fontStyle:"italic"}}>neighbourhood</em></h1>
-          <p style={{color:"rgba(255,255,255,.65)",fontSize:18,marginBottom:36}}>Turn your skills into income. Thousands of people nearby need exactly what you offer.</p>
-          <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
-            <button className="btn btn-orange btn-xl" onClick={()=>navigate("auth")}>Create free tasker profile →</button>
-            <button className="btn btn-xl" style={{background:"rgba(255,255,255,.1)",color:"white",border:"1.5px solid rgba(255,255,255,.25)"}} onClick={()=>navigate("search")}>Browse taskers first</button>
-          </div>
+          <p style={{color:"rgba(255,255,255,.65)",fontSize:18,marginBottom:36}}>Turn your skills into income. Start with 5 free bookings — no credit card needed.</p>
+          <button className="btn btn-orange btn-xl" onClick={()=>navigate("auth")}>Create free tasker profile →</button>
         </div>
       </div>
       <div className="page-wrap" style={{paddingTop:64,paddingBottom:80}}>
-        <div style={{textAlign:"center",marginBottom:48}}>
-          <div className="section-label" style={{justifyContent:"center"}}>Why Street Tasker</div>
-          <h2 className="section-title">Everything you need to succeed</h2>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:24,marginBottom:64}}>
-          {perks.map((p,i)=>(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:20}}>
+          {[{icon:"💰",title:"Earn on your terms",desc:"Set your own prices and hours. Start with 5 free bookings, upgrade when you're ready."},{icon:"🏘️",title:"Work locally in Nigeria",desc:"Serve clients right in your neighbourhood in Lagos, Abuja, Port Harcourt and beyond."},{icon:"⭐",title:"Build your reputation",desc:"Reviews and ratings help you grow. Great work gets rewarded with more bookings."},{icon:"📸",title:"Showcase your work",desc:"Post photos of your work like Instagram. Clients discover you through your portfolio."}].map((p,i)=>(
             <div key={i} className="card" style={{textAlign:"center"}}>
               <div style={{fontSize:36,marginBottom:14}}>{p.icon}</div>
               <h3 style={{fontFamily:"'Fraunces',serif",fontSize:18,marginBottom:8}}>{p.title}</h3>
               <p style={{color:"var(--slate)",fontSize:14,lineHeight:1.7}}>{p.desc}</p>
             </div>
           ))}
-        </div>
-        <div style={{background:"var(--bone)",borderRadius:"var(--radius-xl)",padding:"clamp(36px,5vw,64px)",textAlign:"center",border:"1px solid var(--border)"}}>
-          <h2 style={{fontFamily:"'Fraunces',serif",fontSize:"clamp(24px,3vw,36px)",marginBottom:12}}>Ready to get started?</h2>
-          <p style={{color:"var(--slate)",marginBottom:28}}>Create your free profile in under 3 minutes.</p>
-          <button className="btn btn-orange btn-xl" onClick={()=>navigate("auth")}>Create your profile — it's free</button>
         </div>
       </div>
     </div>
@@ -1192,33 +1691,23 @@ function hideSplash() {
   const el = document.getElementById("loading");
   if(el){ el.style.transition="opacity 0.4s"; el.style.opacity="0"; setTimeout(()=>{ if(el.parentNode) el.parentNode.removeChild(el); },450); }
 }
-
 try {
   const root = ReactDOM.createRoot(document.getElementById("root"));
   root.render(<App/>);
-  // Hide after first paint
   requestAnimationFrame(()=>requestAnimationFrame(hideSplash));
 } catch(err) {
-  document.getElementById("loading").innerHTML = `<div style="color:white;text-align:center;padding:32px;max-width:480px"><div style="font-size:48px;margin-bottom:16px">⚡</div><h2 style="font-family:serif;margin-bottom:12px">Something went wrong</h2><pre style="background:rgba(255,255,255,.1);padding:16px;border-radius:8px;font-size:12px;text-align:left;overflow:auto">${err.message}</pre><a href="." style="display:inline-block;margin-top:20px;background:#FF6B35;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Reload</a></div>`;
+  document.getElementById("loading").innerHTML=`<div style="color:white;text-align:center;padding:32px;max-width:480px"><div style="font-size:48px;margin-bottom:16px">⚡</div><h2 style="font-family:serif;margin-bottom:12px">Something went wrong</h2><pre style="background:rgba(255,255,255,.1);padding:16px;border-radius:8px;font-size:12px;text-align:left;overflow:auto;max-height:200px">${err.message}</pre><a href="." style="display:inline-block;margin-top:20px;background:#FF6B35;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Reload</a></div>`;
 }
-</script>
-
-<!-- Fallback: if Babel fails to load, show error instead of infinite spinner -->
-<script>
-window.addEventListener('error', function(e) {
+window.addEventListener('error', function() {
   var loading = document.getElementById('loading');
-  if(loading && document.getElementById('root') && !document.getElementById('root').hasChildNodes()) {
-    loading.innerHTML = '<div style="color:white;text-align:center;padding:32px"><div style="font-size:48px;margin-bottom:16px">⚡</div><h2 style="font-family:serif;margin-bottom:12px">Failed to load</h2><p style="color:rgba(255,255,255,.6);margin-bottom:20px">A script could not be loaded. Check your connection and try again.</p><a href="." style="background:#FF6B35;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Reload page</a></div>';
+  if(loading && !document.getElementById('root')?.hasChildNodes()) {
+    loading.innerHTML='<div style="color:white;text-align:center;padding:32px"><div style="font-size:48px;margin-bottom:16px">⚡</div><h2 style="font-family:serif;margin-bottom:12px">Failed to load</h2><p style="color:rgba(255,255,255,.6);margin-bottom:20px">Check your connection and try again.</p><a href="." style="background:#FF6B35;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Reload</a></div>';
   }
 });
-// Nuclear fallback: if nothing has rendered after 10s, show error
 setTimeout(function() {
-  var root = document.getElementById('root');
-  var loading = document.getElementById('loading');
-  if(loading && root && !root.hasChildNodes()) {
-    loading.innerHTML = '<div style="color:white;text-align:center;padding:32px"><div style="font-size:48px;margin-bottom:16px">⚡</div><h2 style="font-family:serif;margin-bottom:12px">Taking too long</h2><p style="color:rgba(255,255,255,.6);margin-bottom:20px">Scripts are taking too long to load. Please check your connection.</p><a href="." style="background:#FF6B35;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Reload page</a></div>';
-  }
-}, 10000);
+  var root=document.getElementById('root'); var loading=document.getElementById('loading');
+  if(loading&&root&&!root.hasChildNodes()) loading.innerHTML='<div style="color:white;text-align:center;padding:32px"><a href="." style="background:#FF6B35;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Taking too long — Reload</a></div>';
+},10000);
 </script>
 </body>
 </html>

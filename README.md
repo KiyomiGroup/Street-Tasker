@@ -1,82 +1,95 @@
 # ⚡ Street Tasker
 
-> A modern neighbourhood marketplace connecting people with trusted local service providers — barbers, cleaners, plumbers, electricians, nail artists, tutors and more.
+A modern neighbourhood services marketplace built for Nigeria — connecting people with trusted local barbers, cleaners, plumbers, electricians, nail artists, tutors and more.
 
-🌐 **Live site:** [https://kiyomigroup.github.io/Neighborhood-Link/](https://kiyomigroup.github.io/Neighborhood-Link/)
-
----
-
-## ✨ Features
-
-- **Smart Search** — Auto-suggest services with location filtering
-- **Bento Grid Categories** — Visual service categories with hover animations
-- **Featured Taskers** — Rated provider cards with pricing and profiles
-- **Interactive Map** — Pin map showing nearby taskers with hover cards
-- **Tasker Profiles** — Full profile pages with services, portfolio, and contact
-- **Provider Dashboard** — Manage business info, services, and portfolio
-- **Become a Tasker** — Sign-up flow for new service providers
-- **Formspree Integration** — All forms connected to live email notifications
-- **Mobile-first Responsive** — Works beautifully on all screen sizes
+🌐 **Live site:** https://kiyomigroup.github.io/Neighborhood-Link/
 
 ---
 
-## 🗂️ File Structure
+## ✨ What's included
+
+- Smart search with autocomplete
+- Bento grid service categories with illustrated scenes
+- Featured Tasker cards with business images
+- Interactive pin map showing nearby taskers
+- 3-tier subscription system (Free / Pro / Elite) in Nigerian Naira (₦)
+- Booking counter + paywall modal when limit is reached
+- Step-by-step tasker onboarding with photo uploads
+- Provider Dashboard with Instagram-style post composer
+- Client Dashboard with social feed (likes + comments)
+- Pricing page (₦0 / ₦9,900 / ₦24,900 per month)
+- Custom 404 page
+- Mobile-first responsive design
+
+---
+
+## 💰 Subscription Plans
+
+| Plan  | Price       | Bookings       | Extras                          |
+|-------|-------------|----------------|---------------------------------|
+| Free  | ₦0          | 5 total        | Basic listing                   |
+| Pro   | ₦9,900/mo   | 100/month      | Priority listing, analytics     |
+| Elite | ₦24,900/mo  | Unlimited      | Featured homepage + search top  |
+
+---
+
+## 📁 File Structure
 
 ```
-street-tasker/
-├── index.html          # Main SPA — homepage, search, profiles, dashboard
-├── 404.html            # Custom 404 page
-├── .nojekyll           # Disables Jekyll processing on GitHub Pages
-├── CNAME               # (optional) Custom domain config
-└── README.md           # This file
+Neighborhood-Link/
+├── index.html        ← Full app (React SPA, no build step needed)
+├── 404.html          ← Custom error page
+├── README.md         ← This file
+├── nojekyll          ← Rename to .nojekyll before pushing
+└── deploy-workflow.yml  ← Rename/move to .github/workflows/deploy.yml
 ```
 
 ---
 
-## 🚀 Deploy to GitHub Pages
+## 🚀 How to deploy
 
-1. Push all files to your `main` branch
-2. Go to **Settings → Pages**
-3. Set source to `main` branch, `/ (root)` folder
-4. Your site will be live at `https://<username>.github.io/<repo>/`
+### Option A — GitHub Pages (simple, recommended)
+
+1. Upload all files to your repo
+2. Rename `nojekyll` → `.nojekyll`
+3. Go to **Settings → Pages**
+4. Set Source: **Deploy from branch** → `main` → `/ (root)`
+5. Click Save — live in ~60 seconds
+
+### Option B — GitHub Actions (auto-deploy on push)
+
+1. Create folder `.github/workflows/` in your repo
+2. Move `deploy-workflow.yml` into it and rename to `deploy.yml`
+3. Go to **Settings → Pages**
+4. Set Source: **GitHub Actions**
+5. Every push to `main` auto-deploys
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Tech |
-|---|---|
-| Framework | React 18 (via CDN, no build step) |
-| JSX Transform | Babel Standalone |
-| Fonts | Fraunces + Plus Jakarta Sans (Google Fonts) |
-| Forms | Formspree |
-| Hosting | GitHub Pages |
+| Layer       | Tech                            |
+|-------------|----------------------------------|
+| UI          | React 18 (CDN, no build needed) |
+| JSX         | Babel Standalone                |
+| Fonts       | Fraunces + Plus Jakarta Sans    |
+| Forms       | Formspree                       |
+| Currency    | Nigerian Naira (₦)              |
+| Hosting     | GitHub Pages                    |
 
 ---
 
-## 🎨 Design System
+## 📬 Formspree
 
-| Token | Value |
-|---|---|
-| Primary | `#0A0F1E` (Ink) |
-| Accent | `#FF6B35` (Orange) |
-| Teal | `#0FA89A` |
-| Background | `#F5F3EF` (Bone) |
-| Font (Display) | Fraunces (serif) |
-| Font (Body) | Plus Jakarta Sans |
+All forms post to `https://formspree.io/f/mwvnjrba`.
 
----
-
-## 📬 Formspree Setup
-
-All forms post to `https://formspree.io/f/mwvnjrba`. To use your own:
-
-1. Create a free account at [formspree.io](https://formspree.io)
-2. Create a new form and copy your endpoint ID
-3. Replace `mwvnjrba` in `index.html` with your ID
+To use your own endpoint:
+1. Sign up free at [formspree.io](https://formspree.io)
+2. Create a form and copy the ID
+3. Replace `mwvnjrba` in `index.html` (line ~38)
 
 ---
 
 ## 📄 License
 
-MIT — free to use and modify.
+MIT — free to use, modify and distribute.
