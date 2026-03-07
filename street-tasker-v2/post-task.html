@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Dashboard — Street Tasker</title>
+  <title>Post a Task — Street Tasker</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E"><text y='.9em' font-size='90'>⚡</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600&display=swap" rel="stylesheet">
 <style>
@@ -327,346 +327,259 @@ select.form-input{cursor:pointer}
 <body>
 <nav class="navbar"><div class="navbar-inner">
   <a href="index.html" class="nav-logo"><div class="nav-logo-mark">⚡</div>Street<span>Tasker</span></a>
-  <div class="nav-links">
-    <a href="browse-tasks.html" class="nav-link">Browse Tasks</a>
-    <a href="post-task.html" class="nav-link">Post a Task</a>
-  </div>
   <div class="nav-actions" id="navActions"></div>
 </div></nav>
 
 <div class="page-wrap">
-  <div class="dash-layout">
-    <!-- Sidebar -->
-    <aside class="dash-sidebar">
-      <div id="sidebarUser" style="padding:0 0 20px;border-bottom:1px solid var(--border);margin-bottom:12px"></div>
-      <button class="sidebar-item active" id="sb-overview" onclick="showTab('overview')"><span class="sidebar-icon">📊</span>Overview</button>
-      <button class="sidebar-item" id="sb-tasks" onclick="showTab('tasks')"><span class="sidebar-icon">📋</span>My Tasks</button>
-      <button class="sidebar-item" id="sb-applications" onclick="showTab('applications')"><span class="sidebar-icon">✉️</span>Applications<span class="sidebar-badge" id="appBadge" style="display:none">0</span></button>
-      <button class="sidebar-item" id="sb-notifications" onclick="showTab('notifications')"><span class="sidebar-icon">🔔</span>Notifications<span class="sidebar-badge" id="notifBadge" style="display:none">0</span></button>
-      <button class="sidebar-item" id="sb-profile" onclick="showTab('profile')"><span class="sidebar-icon">👤</span>Edit Profile</button>
-      <div style="margin-top:auto;padding-top:20px;border-top:1px solid var(--border)">
-        <button class="sidebar-item" onclick="Auth.signOut()"><span class="sidebar-icon">🚪</span>Sign out</button>
-      </div>
-    </aside>
+  <div class="container" style="max-width:760px;padding-top:48px;padding-bottom:80px">
+    <div style="margin-bottom:36px">
+      <a href="browse-tasks.html" style="color:var(--mist);font-size:.875rem;display:inline-flex;align-items:center;gap:6px;margin-bottom:16px">← Back to tasks</a>
+      <h1 style="font-size:clamp(1.5rem,3vw,2.25rem);margin-bottom:6px">Post a task</h1>
+      <p>Describe what you need done and let local taskers come to you.</p>
+    </div>
 
-    <!-- Main -->
-    <main class="dash-main">
-      <!-- OVERVIEW -->
-      <div id="tab-overview" class="tab-content">
-        <div style="margin-bottom:28px">
-          <h2 id="welcomeMsg">Welcome back!</h2>
-          <p id="welcomeSub">Here's what's happening</p>
-        </div>
-        <div class="grid-4" id="statsGrid" style="margin-bottom:28px">
-          <div class="stat-card skeleton" style="height:100px"></div>
-          <div class="stat-card skeleton" style="height:100px"></div>
-          <div class="stat-card skeleton" style="height:100px"></div>
-          <div class="stat-card skeleton" style="height:100px"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
-          <div class="card">
-            <h4 style="margin-bottom:16px">Recent Activity</h4>
-            <div id="recentActivity"><div class="skeleton" style="height:40px;margin-bottom:10px"></div><div class="skeleton" style="height:40px;margin-bottom:10px"></div></div>
+    <!-- Step indicator -->
+    <div class="steps" style="margin-bottom:36px">
+      <div class="step-item"><div class="step-circle active" id="sc1">1</div><div class="step-line" id="sl1"></div></div>
+      <div class="step-item"><div class="step-circle" id="sc2">2</div><div class="step-line" id="sl2"></div></div>
+      <div class="step-item"><div class="step-circle" id="sc3">3</div></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:-28px;margin-bottom:32px;font-size:.75rem;font-weight:600">
+      <span id="sl1t" style="color:var(--brand)">Task Details</span>
+      <span id="sl2t" style="color:var(--mist)">Location & Budget</span>
+      <span id="sl3t" style="color:var(--mist)">Review & Post</span>
+    </div>
+
+    <div id="errorBanner" style="display:none;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:var(--r8);padding:12px 16px;margin-bottom:16px">
+      <p id="errorMsg" style="color:var(--red);font-size:.875rem;margin:0"></p>
+    </div>
+
+    <form id="postForm">
+      <!-- STEP 1 -->
+      <div id="step1" class="card fade-in">
+        <h3 style="margin-bottom:20px">What do you need done?</h3>
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="form-group">
+            <label class="form-label">Task title *</label>
+            <input id="title" type="text" class="form-input" placeholder="e.g. Deep clean 3-bedroom apartment" maxlength="120" required>
+            <span class="form-hint" id="titleCount">0/120 characters</span>
           </div>
-          <div class="card">
-            <h4 style="margin-bottom:16px">Quick Actions</h4>
-            <div style="display:flex;flex-direction:column;gap:10px">
-              <a href="post-task.html" class="btn btn-brand btn-full">+ Post a New Task</a>
-              <a href="browse-tasks.html" class="btn btn-outline btn-full">Browse Available Tasks</a>
-              <a href="profile.html" class="btn btn-outline btn-full" id="viewProfileBtn">View My Profile →</a>
+          <div class="form-group">
+            <label class="form-label">Category *</label>
+            <select id="category" class="form-input" required>
+              <option value="">Select a category</option>
+              <option>Cleaning</option><option>Delivery</option><option>Errands</option>
+              <option>Moving</option><option>Home Repairs</option><option>Gardening</option>
+              <option>Tech Help</option><option>Personal Help</option><option>Painting</option>
+              <option>Pet Care</option><option>Cooking</option><option>Tutoring</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description *</label>
+            <textarea id="description" class="form-input" placeholder="Describe the task in detail — what needs to be done, any special requirements, tools needed, etc." rows="5" required minlength="20"></textarea>
+            <span class="form-hint">More detail = better applicants</span>
+          </div>
+          <div>
+            <label class="form-label" style="display:block;margin-bottom:8px">Photos (optional)</label>
+            <div id="photoUploadZone" style="border:2px dashed var(--border-md);border-radius:var(--r12);padding:32px;text-align:center;cursor:pointer;transition:all .18s" onclick="document.getElementById('photoInput').click()" ondragover="this.style.borderColor='var(--brand)'" ondragleave="this.style.borderColor='var(--border-md)'">
+              <div style="font-size:32px;margin-bottom:8px">📸</div>
+              <div style="font-weight:600;margin-bottom:4px">Upload photos</div>
+              <div style="font-size:.8125rem;color:var(--mist)">Drag & drop or click — JPG, PNG up to 5MB each</div>
+              <input type="file" id="photoInput" accept="image/*" multiple style="display:none" onchange="handlePhotos(this.files)">
             </div>
+            <div id="photoPreview" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px"></div>
           </div>
         </div>
-      </div>
-
-      <!-- MY TASKS -->
-      <div id="tab-tasks" class="tab-content" style="display:none">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
-          <h2>My Tasks</h2>
-          <a href="post-task.html" class="btn btn-brand">+ Post New Task</a>
+        <div style="display:flex;justify-content:flex-end;margin-top:24px">
+          <button type="button" class="btn btn-brand btn-lg" onclick="goStep(2)">Next: Location & Budget →</button>
         </div>
-        <div class="tabs">
-          <button class="tab-btn active" onclick="loadUserTasks('posted',this)">Tasks I Posted</button>
-          <button class="tab-btn" onclick="loadUserTasks('assigned',this)">Tasks Assigned to Me</button>
-        </div>
-        <div id="userTasksList"></div>
       </div>
 
-      <!-- APPLICATIONS -->
-      <div id="tab-applications" class="tab-content" style="display:none">
-        <h2 style="margin-bottom:24px">My Applications</h2>
-        <div id="myAppsList"></div>
-      </div>
-
-      <!-- NOTIFICATIONS -->
-      <div id="tab-notifications" class="tab-content" style="display:none">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
-          <h2>Notifications</h2>
-          <button class="btn btn-ghost btn-sm" onclick="markAllRead()">Mark all read</button>
-        </div>
-        <div id="notifsList"></div>
-      </div>
-
-      <!-- PROFILE EDIT -->
-      <div id="tab-profile" class="tab-content" style="display:none">
-        <h2 style="margin-bottom:24px">Edit Profile</h2>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
-          <div class="card">
-            <h4 style="margin-bottom:20px">Profile Photo</h4>
-            <div style="text-align:center;margin-bottom:16px" id="avatarPreview"></div>
-            <label class="btn btn-outline btn-full" style="cursor:pointer">
-              📷 Upload Photo
-              <input type="file" id="avatarFile" accept="image/*" style="display:none" onchange="uploadAvatar(this.files[0])">
-            </label>
+      <!-- STEP 2 -->
+      <div id="step2" class="card fade-in" style="display:none">
+        <h3 style="margin-bottom:20px">Location & Budget</h3>
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="form-group">
+            <label class="form-label">Task location *</label>
+            <input id="location" type="text" class="form-input" placeholder="e.g. Ikeja, Lagos" required>
+            <span class="form-hint">Be specific so taskers nearby can find you</span>
           </div>
-          <div class="card">
-            <h4 style="margin-bottom:20px">Basic Info</h4>
-            <div style="display:flex;flex-direction:column;gap:14px">
-              <div class="form-group"><label class="form-label">Full Name</label><input id="pName" type="text" class="form-input"></div>
-              <div class="form-group"><label class="form-label">Location</label><input id="pLocation" type="text" class="form-input" placeholder="e.g. Ikeja, Lagos"></div>
-              <div class="form-group"><label class="form-label">Bio</label><textarea id="pBio" class="form-input" rows="3" placeholder="Tell customers about yourself…"></textarea></div>
-              <button class="btn btn-brand" onclick="saveProfile()">Save Changes</button>
-            </div>
+          <div class="form-group">
+            <label class="form-label">Budget (₦) *</label>
+            <input id="budget" type="number" class="form-input" placeholder="e.g. 5000" min="100" required>
+            <span class="form-hint">Set a fair price. Taskers may offer a different price when applying.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Deadline (optional)</label>
+            <input id="deadline" type="date" class="form-input" min="">
           </div>
         </div>
-        <div class="card" style="margin-top:20px" id="skillsCard" style="display:none">
-          <h4 style="margin-bottom:16px">Skills (Tasker only)</h4>
-          <div id="skillChips" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px"></div>
-          <button class="btn btn-brand btn-sm" onclick="saveSkills()">Update Skills</button>
+        <div style="display:flex;justify-content:space-between;margin-top:24px">
+          <button type="button" class="btn btn-outline btn-lg" onclick="goStep(1)">← Back</button>
+          <button type="button" class="btn btn-brand btn-lg" onclick="goStep(3)">Review Task →</button>
         </div>
       </div>
-    </main>
+
+      <!-- STEP 3 - Review -->
+      <div id="step3" class="card fade-in" style="display:none">
+        <h3 style="margin-bottom:20px">Review your task</h3>
+        <div id="reviewPanel" style="display:flex;flex-direction:column;gap:14px">
+          <!-- rendered by JS -->
+        </div>
+        <div style="margin-top:24px;padding:16px;background:var(--cloud);border-radius:var(--r12)">
+          <p style="font-size:.875rem;color:var(--slate);margin:0">✅ Your task will be visible to all taskers in your area. You can edit or cancel it at any time from your dashboard.</p>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:24px">
+          <button type="button" class="btn btn-outline btn-lg" onclick="goStep(2)">← Back</button>
+          <button type="submit" class="btn btn-brand btn-lg" id="submitBtn">Post Task →</button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Success -->
+    <div id="successState" style="display:none" class="card fade-in" style="text-align:center;padding:48px">
+      <div style="font-size:64px;margin-bottom:20px">🎉</div>
+      <h2 style="margin-bottom:10px">Task posted!</h2>
+      <p style="margin-bottom:28px">Your task is now live and taskers will start applying soon. You'll get notified for each application.</p>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <a href="dashboard.html" class="btn btn-brand btn-lg">View Dashboard →</a>
+        <a href="browse-tasks.html" class="btn btn-outline btn-lg">Browse Other Tasks</a>
+      </div>
+    </div>
   </div>
 </div>
-
-<nav class="bottom-nav">
-  <a href="index.html" class="bn-item"><span class="bn-icon">🏠</span>Home</a>
-  <a href="browse-tasks.html" class="bn-item"><span class="bn-icon">🔍</span>Browse</a>
-  <button class="bn-fab" onclick="window.location.href='post-task.html'">+</button>
-  <a href="dashboard.html" class="bn-item active"><span class="bn-icon">📊</span>Dashboard</a>
-  <a href="profile.html" class="bn-item" id="mobileProfileLink"><span class="bn-icon">👤</span>Profile</a>
-</nav>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
 <script>
-const ALL_SKILLS = ['Cleaning','Delivery','Errands','Moving','Home Repairs','Gardening','Tech Help','Personal Help','Painting','Pet Care','Cooking','Tutoring'];
-let currentUser, profile, selectedSkills = [];
+let uploadedPhotos = [];
+let currentUser = null;
 
-function showTab(name) {
-  document.querySelectorAll('.tab-content').forEach(t => t.style.display = 'none');
-  document.getElementById(`tab-${name}`).style.display = 'block';
-  document.querySelectorAll('.sidebar-item').forEach(s => s.classList.remove('active'));
-  document.getElementById(`sb-${name}`).classList.add('active');
-  if (name === 'tasks') loadUserTasks('posted', document.querySelector(`#tab-tasks .tab-btn.active`) || document.querySelector('#tab-tasks .tab-btn'));
-  if (name === 'applications') loadMyApps();
-  if (name === 'notifications') loadNotifs();
-  if (name === 'profile') populateProfile();
-  if (name === 'overview') loadOverview();
+// Set min date to today
+document.getElementById('deadline').min = new Date().toISOString().split('T')[0];
+
+// Title counter
+document.getElementById('title').addEventListener('input', function() {
+  document.getElementById('titleCount').textContent = `${this.value.length}/120 characters`;
+});
+
+// Photo handling
+async function handlePhotos(files) {
+  const zone = document.getElementById('photoPreview');
+  for (const f of files) {
+    if (f.size > 5e6) { Toast.error('File too large (max 5MB)'); continue; }
+    const reader = new FileReader();
+    reader.onload = e => {
+      uploadedPhotos.push({ file: f, preview: e.target.result });
+      zone.innerHTML += `<div style="position:relative"><img src="${e.target.result}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid var(--border)"><button type="button" onclick="removePhoto(${uploadedPhotos.length-1},this.parentNode)" style="position:absolute;top:-6px;right:-6px;background:var(--red);color:white;border:none;border-radius:50%;width:20px;height:20px;font-size:11px;cursor:pointer">✕</button></div>`;
+    };
+    reader.readAsDataURL(f);
+  }
 }
+
+function removePhoto(i, el) {
+  uploadedPhotos.splice(i, 1);
+  el.remove();
+}
+
+function goStep(n) {
+  // Validate current step
+  if (n === 2) {
+    if (!document.getElementById('title').value.trim()) return showErr('Please enter a task title.');
+    if (!document.getElementById('category').value) return showErr('Please select a category.');
+    if (!document.getElementById('description').value.trim() || document.getElementById('description').value.length < 20) return showErr('Description must be at least 20 characters.');
+  }
+  if (n === 3) {
+    if (!document.getElementById('location').value.trim()) return showErr('Please enter a location.');
+    if (!document.getElementById('budget').value || isNaN(document.getElementById('budget').value)) return showErr('Please enter a valid budget.');
+    buildReview();
+  }
+  hideErr();
+  [1,2,3].forEach(i => document.getElementById(`step${i}`).style.display = i === n ? 'block' : 'none');
+  // Update stepper
+  [1,2,3].forEach(i => {
+    const sc = document.getElementById(`sc${i}`);
+    if (!sc) return;
+    sc.className = `step-circle ${i < n ? 'done' : i === n ? 'active' : ''}`;
+    sc.textContent = i < n ? '✓' : i;
+    if (i < 3) document.getElementById(`sl${i}`)?.classList.toggle('done', i < n);
+    const lt = document.getElementById(`sl${i}t`);
+    if (lt) lt.style.color = i < n ? 'var(--teal)' : i === n ? 'var(--brand)' : 'var(--mist)';
+  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function buildReview() {
+  const data = {
+    title: document.getElementById('title').value,
+    category: document.getElementById('category').value,
+    description: document.getElementById('description').value,
+    location: document.getElementById('location').value,
+    budget: document.getElementById('budget').value,
+    deadline: document.getElementById('deadline').value,
+  };
+  document.getElementById('reviewPanel').innerHTML = [
+    ['Task', data.title],['Category', data.category],
+    ['Description', data.description.substring(0,200) + (data.description.length > 200 ? '…' : '')],
+    ['Location', data.location],['Budget', Utils.fmt(data.budget)],
+    data.deadline ? ['Deadline', new Date(data.deadline).toLocaleDateString('en-NG',{weekday:'long',day:'numeric',month:'long'})] : null,
+  ].filter(Boolean).map(([k, v]) => `
+    <div style="display:flex;gap:16px;padding:12px 0;border-bottom:1px solid var(--border)">
+      <div style="width:100px;flex-shrink:0;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--mist);padding-top:2px">${k}</div>
+      <div style="font-weight:500;color:var(--ink)">${Utils.sanitize(v)}</div>
+    </div>`).join('');
+}
+
+function showErr(msg) {
+  document.getElementById('errorBanner').style.display = 'block';
+  document.getElementById('errorMsg').textContent = msg;
+}
+function hideErr() { document.getElementById('errorBanner').style.display = 'none'; }
+
+document.getElementById('postForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!currentUser) { window.location.href = `login.html?redirect=${encodeURIComponent(window.location.href)}`; return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Posting…';
+
+  try {
+    // Upload photos
+    const photoUrls = [];
+    for (const p of uploadedPhotos) {
+      try { photoUrls.push(await DB.uploadTaskPhoto(p.file)); } catch {}
+    }
+
+    const task = {
+      title: document.getElementById('title').value.trim(),
+      category: document.getElementById('category').value,
+      description: document.getElementById('description').value.trim(),
+      location: document.getElementById('location').value.trim(),
+      budget: parseFloat(document.getElementById('budget').value),
+      deadline: document.getElementById('deadline').value || null,
+      created_by: currentUser.id,
+      status: 'open',
+      photos: photoUrls,
+    };
+
+    await DB.createTask(task);
+    document.getElementById('postForm').style.display = 'none';
+    document.getElementById('successState').style.display = 'block';
+    Toast.success('Task posted successfully!');
+
+  } catch(err) {
+    showErr(err.message || 'Failed to post task. Please try again.');
+    btn.disabled = false; btn.textContent = 'Post Task →';
+  }
+});
 
 async function init() {
   currentUser = await Auth.requireAuth();
   if (!currentUser) return;
-  profile = await DB.getProfile(currentUser.id).catch(() => null);
-  selectedSkills = profile?.skills || [];
-
-  document.getElementById('welcomeMsg').textContent = `Welcome back, ${profile?.name || 'there'} 👋`;
-  document.getElementById('welcomeSub').textContent = profile?.role === 'tasker' ? 'Browse tasks and manage your applications' : 'Manage your posted tasks and find taskers';
-  document.getElementById('navActions').innerHTML = `<div class="nav-user" onclick="showTab('profile')">${Utils.avatar(profile,'xs')}<span class="nav-user-name">${profile?.name||'Me'}</span></div><button class="btn btn-ghost btn-sm" onclick="Auth.signOut()">Sign out</button>`;
-  document.getElementById('sidebarUser').innerHTML = `<div style="display:flex;align-items:center;gap:10px">${Utils.avatar(profile,'sm')}<div><div style="font-weight:700;font-size:.875rem">${Utils.sanitize(profile?.name||'')}</div><div style="font-size:.75rem;color:var(--mist);text-transform:capitalize">${profile?.role||''}</div></div></div>`;
-  document.getElementById('viewProfileBtn').href = `profile.html?id=${currentUser.id}`;
-  document.getElementById('mobileProfileLink').href = `profile.html?id=${currentUser.id}`;
-
-  loadOverview();
-  loadNotifCount();
-
-  if (profile?.role === 'tasker') {
-    document.getElementById('sb-applications').style.display = 'flex';
-  }
-  subscribeNotifs();
+  const p = await DB.getProfile(currentUser.id).catch(() => null);
+  document.getElementById('navActions').innerHTML = `<div class="nav-user" onclick="window.location.href='dashboard.html'">${Utils.avatar(p,'xs')}<span class="nav-user-name">${p?.name||'Me'}</span></div>`;
 }
-
-async function loadOverview() {
-  try {
-    const [postedTasks, myApps] = await Promise.all([
-      DB.getMyTasks(currentUser.id),
-      profile?.role === 'tasker' ? DB.getMyApplications(currentUser.id) : Promise.resolve([])
-    ]);
-    const open = postedTasks.filter(t => t.status === 'open').length;
-    const active = postedTasks.filter(t => ['assigned','in_progress'].includes(t.status)).length;
-    const done = postedTasks.filter(t => t.status === 'completed').length;
-    const pending = myApps.filter(a => a.status === 'pending').length;
-
-    document.getElementById('statsGrid').innerHTML = [
-      { num: postedTasks.length, label: 'Tasks Posted', icon: '📋', color: 'var(--brand-soft)', numColor: 'var(--brand)' },
-      { num: active, label: 'Active Tasks', icon: '⚡', color: 'var(--teal-soft)', numColor: 'var(--teal)' },
-      { num: done, label: 'Completed', icon: '✅', color: 'rgba(34,197,94,.1)', numColor: '#16a34a' },
-      { num: profile?.role === 'tasker' ? myApps.length : profile?.rating?.toFixed(1) || '0.0', label: profile?.role === 'tasker' ? 'Applications' : 'Rating', icon: profile?.role === 'tasker' ? '✉️' : '⭐', color: 'rgba(245,158,11,.1)', numColor: '#d97706' },
-    ].map(s => `<div class="stat-card" style="background:${s.color};border-color:transparent"><div class="stat-num" style="color:${s.numColor}">${s.num}</div><div class="stat-label">${s.icon} ${s.label}</div></div>`).join('');
-
-    // Recent activity
-    const recent = [...postedTasks].sort((a,b) => new Date(b.updated_at) - new Date(a.updated_at)).slice(0,5);
-    document.getElementById('recentActivity').innerHTML = recent.length
-      ? recent.map(t => `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)"><div><a href="task-details.html?id=${t.id}" style="font-weight:600;font-size:.875rem;text-decoration:none;color:var(--ink)">${Utils.sanitize(t.title)}</a><div style="font-size:.75rem;color:var(--mist)">${Utils.timeAgo(t.updated_at)}</div></div>${Utils.statusBadge(t.status)}</div>`).join('')
-      : '<p style="color:var(--mist);font-size:.875rem;text-align:center;padding:20px">No activity yet. Post your first task!</p>';
-
-  } catch(e) {
-    document.getElementById('statsGrid').innerHTML = '<div class="card"><p>Error loading stats.</p></div>';
-  }
-}
-
-async function loadUserTasks(type, btn) {
-  document.querySelectorAll('#tab-tasks .tab-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
-  const el = document.getElementById('userTasksList');
-  el.innerHTML = '<div class="card skeleton" style="height:80px;margin-bottom:10px"></div>'.repeat(3);
-  try {
-    const tasks = type === 'posted' ? await DB.getMyTasks(currentUser.id) : await DB.getMyAssignedTasks(currentUser.id);
-    if (!tasks.length) { el.innerHTML = `<div class="empty"><div class="empty-icon">${type==='posted'?'📋':'🔧'}</div><h3 class="empty-title">${type==='posted'?'No tasks yet':'No assigned tasks'}</h3><p class="empty-desc">${type==='posted'?'Post your first task to get help.':'Browse tasks and apply to get hired.'}</p><a href="${type==='posted'?'post-task':'browse-tasks'}.html" class="btn btn-brand">${type==='posted'?'Post a Task':'Browse Tasks'}</a></div>`; return; }
-    el.innerHTML = tasks.map(t => `
-      <div class="task-card" style="flex-direction:row;align-items:center;margin-bottom:12px;gap:16px" onclick="window.location.href='task-details.html?id=${t.id}'">
-        <div style="flex:1;min-width:0">
-          <div style="font-family:var(--fd);font-weight:700;margin-bottom:4px">${Utils.sanitize(t.title)}</div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            ${Utils.statusBadge(t.status)}
-            <span style="font-size:.8125rem;color:var(--mist)">📍 ${Utils.sanitize(t.location)}</span>
-            <span style="font-size:.8125rem;color:var(--mist)">🕐 ${Utils.timeAgo(t.created_at)}</span>
-          </div>
-        </div>
-        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0">
-          <div style="font-family:var(--fd);font-weight:800;color:var(--brand)">${Utils.fmt(t.budget)}</div>
-          <span class="btn btn-outline btn-sm">View →</span>
-        </div>
-      </div>`).join('');
-  } catch(e) { el.innerHTML = '<div class="card"><p>Error loading tasks.</p></div>'; }
-}
-
-async function loadMyApps() {
-  const el = document.getElementById('myAppsList');
-  el.innerHTML = '<div class="card skeleton" style="height:80px;margin-bottom:10px"></div>'.repeat(3);
-  try {
-    const apps = await DB.getMyApplications(currentUser.id);
-    if (!apps.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">✉️</div><h3 class="empty-title">No applications</h3><p class="empty-desc">Browse tasks and apply to start earning.</p><a href="browse-tasks.html" class="btn btn-brand">Browse Tasks</a></div>'; return; }
-    el.innerHTML = apps.map(a => `
-      <div class="task-card" style="flex-direction:row;align-items:center;margin-bottom:12px;gap:16px" onclick="window.location.href='task-details.html?id=${a.task?.id}'">
-        <div style="flex:1;min-width:0">
-          <div style="font-family:var(--fd);font-weight:700;margin-bottom:4px">${Utils.sanitize(a.task?.title||'Task')}</div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-            ${Utils.statusBadge(a.status)}
-            <span style="font-size:.8125rem;color:var(--mist)">My offer: ${Utils.fmt(a.offer_price)}</span>
-            <span style="font-size:.8125rem;color:var(--mist)">Applied ${Utils.timeAgo(a.created_at)}</span>
-          </div>
-        </div>
-        <span class="btn btn-outline btn-sm">View Task →</span>
-      </div>`).join('');
-    const pending = apps.filter(a => a.status === 'pending').length;
-    const badge = document.getElementById('appBadge');
-    if (pending > 0) { badge.style.display = ''; badge.textContent = pending; }
-  } catch(e) { el.innerHTML = '<div class="card"><p>Error loading applications.</p></div>'; }
-}
-
-async function loadNotifs() {
-  const el = document.getElementById('notifsList');
-  el.innerHTML = '<div class="card skeleton" style="height:60px;margin-bottom:8px"></div>'.repeat(5);
-  try {
-    const notifs = await DB.getNotifs(currentUser.id);
-    if (!notifs.length) { el.innerHTML = '<div class="empty"><div class="empty-icon">🔔</div><h3 class="empty-title">No notifications</h3><p class="empty-desc">You\'re all caught up!</p></div>'; return; }
-    el.innerHTML = notifs.map(n => `
-      <div onclick="${n.link ? `window.location.href='${n.link}'` : ''}" style="display:flex;gap:14px;padding:14px 18px;background:${n.read?'white':'var(--brand-soft)'};border:1px solid var(--border);border-radius:var(--r12);margin-bottom:8px;cursor:${n.link?'pointer':'default'};transition:all .18s" onmouseover="this.style.background='var(--cloud)'" onmouseout="this.style.background='${n.read?'white':'var(--brand-soft)'}'">
-        <div style="font-size:24px;flex-shrink:0">${{application:'✉️',accepted:'🎉',message:'💬',review:'⭐',task:'📋'}[n.type]||'🔔'}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:700;font-size:.875rem;margin-bottom:3px">${Utils.sanitize(n.title)}</div>
-          <div style="font-size:.8125rem;color:var(--slate)">${Utils.sanitize(n.body)}</div>
-          <div style="font-size:.75rem;color:var(--mist);margin-top:4px">${Utils.timeAgo(n.created_at)}</div>
-        </div>
-        ${!n.read ? '<div style="width:8px;height:8px;border-radius:50%;background:var(--brand);flex-shrink:0;margin-top:4px"></div>' : ''}
-      </div>`).join('');
-  } catch(e) { el.innerHTML = '<div class="card"><p>Error loading notifications.</p></div>'; }
-}
-
-async function loadNotifCount() {
-  try {
-    const notifs = await DB.getNotifs(currentUser.id);
-    const unread = notifs.filter(n => !n.read).length;
-    const badge = document.getElementById('notifBadge');
-    if (unread > 0) { badge.style.display = ''; badge.textContent = unread; }
-  } catch {}
-}
-
-async function markAllRead() {
-  await DB.markNotifsRead(currentUser.id);
-  document.getElementById('notifBadge').style.display = 'none';
-  loadNotifs();
-  Toast.success('All marked as read');
-}
-
-function subscribeNotifs() {
-  DB.subscribeNotifs(currentUser.id, payload => {
-    const badge = document.getElementById('notifBadge');
-    const count = parseInt(badge.textContent || '0') + 1;
-    badge.style.display = ''; badge.textContent = count;
-    Toast.info(payload.new.title);
-  });
-}
-
-function populateProfile() {
-  document.getElementById('pName').value = profile?.name || '';
-  document.getElementById('pLocation').value = profile?.location || '';
-  document.getElementById('pBio').value = profile?.bio || '';
-  document.getElementById('avatarPreview').innerHTML = Utils.avatar(profile, 'xl');
-  if (profile?.role === 'tasker') {
-    document.getElementById('skillsCard').style.display = 'block';
-    renderSkillChips();
-  }
-}
-
-function renderSkillChips() {
-  document.getElementById('skillChips').innerHTML = ALL_SKILLS.map(s => {
-    const active = selectedSkills.includes(s);
-    return `<span onclick="toggleSkill('${s}',this)" style="padding:6px 14px;border-radius:var(--rfull);font-size:.8125rem;font-weight:600;background:${active?'var(--brand)':'white'};border:1.5px solid ${active?'var(--brand)':'var(--border-md)'};color:${active?'white':'var(--slate)'};cursor:pointer;transition:all .15s">${s}</span>`;
-  }).join('');
-}
-
-function toggleSkill(s, el) {
-  if (selectedSkills.includes(s)) {
-    selectedSkills = selectedSkills.filter(x => x !== s);
-    el.style.cssText = `padding:6px 14px;border-radius:var(--rfull);font-size:.8125rem;font-weight:600;background:white;border:1.5px solid var(--border-md);color:var(--slate);cursor:pointer;transition:all .15s`;
-  } else {
-    selectedSkills.push(s);
-    el.style.cssText = `padding:6px 14px;border-radius:var(--rfull);font-size:.8125rem;font-weight:600;background:var(--brand);border:1.5px solid var(--brand);color:white;cursor:pointer;transition:all .15s`;
-  }
-}
-
-async function saveProfile() {
-  try {
-    profile = await DB.updateProfile(currentUser.id, {
-      name: document.getElementById('pName').value.trim(),
-      location: document.getElementById('pLocation').value.trim(),
-      bio: document.getElementById('pBio').value.trim(),
-    });
-    Toast.success('Profile updated!');
-    document.getElementById('sidebarUser').innerHTML = `<div style="display:flex;align-items:center;gap:10px">${Utils.avatar(profile,'sm')}<div><div style="font-weight:700;font-size:.875rem">${Utils.sanitize(profile?.name||'')}</div><div style="font-size:.75rem;color:var(--mist);text-transform:capitalize">${profile?.role||''}</div></div></div>`;
-  } catch(e) { Toast.error(e.message); }
-}
-
-async function saveSkills() {
-  try {
-    await DB.updateProfile(currentUser.id, { skills: selectedSkills });
-    Toast.success('Skills updated!');
-  } catch(e) { Toast.error(e.message); }
-}
-
-async function uploadAvatar(file) {
-  if (!file) return;
-  try {
-    const url = await DB.uploadAvatar(currentUser.id, file);
-    profile = { ...profile, avatar_url: url };
-    document.getElementById('avatarPreview').innerHTML = Utils.avatar(profile, 'xl');
-    Toast.success('Avatar updated!');
-  } catch(e) { Toast.error('Failed to upload. Try a smaller image.'); }
-}
-
 init();
 </script>
 </body>
