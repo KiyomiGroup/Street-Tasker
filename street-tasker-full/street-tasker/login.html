@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign In — Street Tasker</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="auth-page">
+  <!-- Left panel -->
+  <div class="auth-left">
+    <div class="hero-orb" style="width:400px;height:400px;background:var(--brand);opacity:.15;top:-100px;right:-100px;position:absolute"></div>
+    <div class="hero-orb" style="width:300px;height:300px;background:var(--teal);opacity:.1;bottom:-80px;left:-60px;position:absolute"></div>
+    <div style="position:relative;z-index:2">
+      <a href="index.html" class="nav-logo" style="margin-bottom:52px;display:inline-flex">
+        <div class="nav-logo-mark">⚡</div>
+        <span style="color:white">Street</span><span style="color:var(--brand)">Tasker</span>
+      </a>
+      <h1 style="color:white;font-size:clamp(1.75rem,3.5vw,2.75rem);margin-bottom:16px">Welcome<br>back 👋</h1>
+      <p style="color:rgba(255,255,255,.55);font-size:1rem;max-width:340px;line-height:1.7">Sign in to manage your tasks, chat with taskers, and keep your neighbourhood running smoothly.</p>
+      <div style="margin-top:40px;display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;gap:12px;color:rgba(255,255,255,.6);font-size:.875rem"><span style="font-size:20px">✅</span>Post and manage tasks</div>
+        <div style="display:flex;align-items:center;gap:12px;color:rgba(255,255,255,.6);font-size:.875rem"><span style="font-size:20px">💬</span>Chat with taskers in real-time</div>
+        <div style="display:flex;align-items:center;gap:12px;color:rgba(255,255,255,.6);font-size:.875rem"><span style="font-size:20px">⭐</span>Build your reputation</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right panel -->
+  <div class="auth-right">
+    <div class="auth-box">
+      <div style="margin-bottom:32px">
+        <a href="index.html" class="nav-logo" style="display:inline-flex;margin-bottom:28px"><div class="nav-logo-mark">⚡</div>Street<span>Tasker</span></a>
+        <h2 style="margin-bottom:6px">Sign in to your account</h2>
+        <p>Don't have one? <a href="signup.html" style="color:var(--brand);font-weight:600">Create account free →</a></p>
+      </div>
+
+      <div id="errorBanner" style="display:none" class="card" style="background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.2);padding:12px 16px;margin-bottom:16px">
+        <p id="errorMsg" style="color:var(--red);font-size:.875rem;margin:0"></p>
+      </div>
+
+      <form id="loginForm" style="display:flex;flex-direction:column;gap:16px">
+        <div class="form-group">
+          <label class="form-label">Email address</label>
+          <input id="email" type="email" class="form-input" placeholder="you@example.com" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <div style="position:relative">
+            <input id="password" type="password" class="form-input" placeholder="••••••••" required autocomplete="current-password">
+            <button type="button" id="togglePwd" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--mist)">👁</button>
+          </div>
+        </div>
+        <div style="text-align:right;margin-top:-8px">
+          <a href="#" style="font-size:.8125rem;color:var(--brand);font-weight:500">Forgot password?</a>
+        </div>
+        <button type="submit" class="btn btn-brand btn-full btn-lg" id="submitBtn">
+          Sign In
+        </button>
+      </form>
+
+      <div style="margin-top:24px;text-align:center;color:var(--mist);font-size:.8125rem">
+        By signing in you agree to our <a href="#" style="color:var(--brand)">Terms</a> and <a href="#" style="color:var(--brand)">Privacy Policy</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script>
+Auth.redirectIfAuth();
+
+document.getElementById('togglePwd').addEventListener('click', () => {
+  const p = document.getElementById('password');
+  p.type = p.type === 'password' ? 'text' : 'password';
+});
+
+document.getElementById('loginForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  const errBanner = document.getElementById('errorBanner');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Signing in…';
+  errBanner.style.display = 'none';
+
+  try {
+    await Auth.signIn({
+      email: document.getElementById('email').value,
+      password: document.getElementById('password').value
+    });
+    const redirect = new URLSearchParams(window.location.search).get('redirect') || 'dashboard.html';
+    window.location.href = redirect;
+  } catch(err) {
+    errBanner.style.display = 'block';
+    document.getElementById('errorMsg').textContent = err.message || 'Login failed. Please try again.';
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+});
+</script>
+</body>
+</html>
