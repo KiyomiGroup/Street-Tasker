@@ -257,10 +257,14 @@ document.getElementById('postForm').addEventListener('submit', async e => {
 });
 
 async function init() {
-  currentUser = await Auth.requireAuth();
-  if (!currentUser) return;
+  currentUser = await Auth.getUser();
+  const el = document.getElementById('navActions');
+  if (!currentUser) {
+    el.innerHTML = `<a href="login.html?redirect=${encodeURIComponent(window.location.href)}" class="btn btn-outline btn-sm">Sign in</a><a href="signup.html" class="btn btn-brand btn-sm">Get started</a>`;
+    return;
+  }
   const p = await DB.getProfile(currentUser.id).catch(() => null);
-  document.getElementById('navActions').innerHTML = `<div class="nav-user" onclick="window.location.href='dashboard.html'">${Utils.avatar(p,'xs')}<span class="nav-user-name">${p?.name||'Me'}</span></div>`;
+  el.innerHTML = `<div class="nav-user" onclick="window.location.href='dashboard.html'">${Utils.avatar(p,'xs')}<span class="nav-user-name">${p?.name||'Me'}</span></div>`;
 }
 init();
 </script>
