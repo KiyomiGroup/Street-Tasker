@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Dashboard — StreetTasker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #0f0f0f; --surface: #f5f5f0; --accent: #ff5c2b; --accent-dark: #d94a1e;
+    --muted: #6b6b6b; --border: #e2e2de; --card: #ffffff; --sidebar: #0f0f0f;
+  }
+  body { font-family: 'DM Sans', sans-serif; background: var(--surface); min-height: 100vh; display: flex; }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: 240px; min-height: 100vh; background: var(--sidebar);
+    display: flex; flex-direction: column; padding: 28px 0; position: fixed; top: 0; left: 0; z-index: 100;
+  }
+  .sidebar .logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.3rem; color: white; padding: 0 24px 32px; text-decoration: none; }
+  .sidebar .logo span { color: var(--accent); }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 24px; color: #aaa; font-size: 0.9rem; font-weight: 500; cursor: pointer; text-decoration: none; transition: color 0.2s, background 0.2s; border-radius: 0; }
+  .nav-item:hover, .nav-item.active { color: white; background: rgba(255,255,255,0.06); }
+  .nav-item.active { border-left: 3px solid var(--accent); padding-left: 21px; }
+  .nav-item .icon { font-size: 1rem; width: 20px; text-align: center; }
+  .sidebar-bottom { margin-top: auto; padding: 0 24px; }
+  .user-chip { display: flex; align-items: center; gap: 10px; padding: 12px; background: rgba(255,255,255,0.08); border-radius: 10px; }
+  .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-family: 'Syne', sans-serif; font-weight: 700; color: white; font-size: 0.85rem; }
+  .user-info { flex: 1; }
+  .user-name { color: white; font-weight: 500; font-size: 0.85rem; }
+  .user-role { color: #888; font-size: 0.75rem; }
+  .logout-btn { color: #888; background: none; border: none; cursor: pointer; font-size: 0.8rem; margin-top: 12px; display: block; width: 100%; text-align: left; padding: 0; }
+  .logout-btn:hover { color: var(--accent); }
+
+  /* MAIN */
+  .main { margin-left: 240px; flex: 1; padding: 36px 40px; }
+  .page-header { margin-bottom: 36px; }
+  .page-header h1 { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.9rem; color: var(--ink); }
+  .page-header p { color: var(--muted); margin-top: 4px; }
+
+  /* STATS ROW */
+  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 36px; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 24px; }
+  .stat-card .stat-label { font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  .stat-card .stat-value { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 2rem; color: var(--ink); }
+  .stat-card .stat-sub { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+
+  /* SECTION HEADER */
+  .section-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+  .section-hdr h2 { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.15rem; color: var(--ink); }
+  .section-hdr a { font-size: 0.85rem; color: var(--accent); text-decoration: none; font-weight: 500; }
+
+  /* SERVICE CARDS (FIX #3 — all link to browse-tasks.html with category) */
+  .services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; margin-bottom: 40px; }
+  .service-card {
+    background: var(--card); border: 1.5px solid var(--border); border-radius: 14px; padding: 20px 16px 16px;
+    text-align: center; text-decoration: none; color: var(--ink);
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+    cursor: pointer; display: block;
+  }
+  .service-card:hover { border-color: var(--accent); box-shadow: 0 4px 20px rgba(255,92,43,0.12); transform: translateY(-2px); }
+  .service-icon { font-size: 2rem; margin-bottom: 10px; }
+  .service-name { font-weight: 600; font-size: 0.9rem; margin-bottom: 4px; }
+  .service-count { font-size: 0.78rem; color: var(--muted); }
+
+  /* RECENT TASKS */
+  .tasks-list { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 36px; }
+  .task-row { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .task-row:last-child { border-bottom: none; }
+  .task-emoji { font-size: 1.4rem; width: 44px; height: 44px; background: var(--surface); border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .task-info { flex: 1; }
+  .task-title { font-weight: 500; font-size: 0.95rem; color: var(--ink); }
+  .task-meta { font-size: 0.8rem; color: var(--muted); margin-top: 2px; }
+  .badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+  .badge.pending { background: #fff8e1; color: #b07800; }
+  .badge.active { background: #e8f5e9; color: #2e7d32; }
+  .badge.done { background: #f3f0ff; color: #5e35b1; }
+  .task-price { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; color: var(--ink); }
+
+  /* POST TASK BUTTON */
+  .cta-bar { display: flex; gap: 16px; margin-bottom: 40px; }
+  .btn-primary { padding: 14px 28px; background: var(--accent); color: white; border: none; border-radius: 10px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; cursor: pointer; text-decoration: none; transition: background 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-primary:hover { background: var(--accent-dark); }
+  .btn-outline { padding: 14px 28px; background: white; color: var(--ink); border: 1.5px solid var(--border); border-radius: 10px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; cursor: pointer; text-decoration: none; transition: border-color 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); }
+  .empty-state p { margin-top: 8px; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <a href="index.html" class="logo">Street<span>Tasker</span></a>
+
+  <a href="customer-dashboard.html" class="nav-item active">
+    <span class="icon">🏠</span> Dashboard
+  </a>
+  <a href="post-task.html" class="nav-item">
+    <span class="icon">➕</span> Post a Task
+  </a>
+  <a href="browse-tasks.html" class="nav-item">
+    <span class="icon">🔍</span> Browse Taskers
+  </a>
+  <a href="#my-tasks" class="nav-item">
+    <span class="icon">📋</span> My Tasks
+  </a>
+  <a href="#messages" class="nav-item">
+    <span class="icon">💬</span> Messages
+  </a>
+  <a href="#account" class="nav-item">
+    <span class="icon">⚙️</span> Account
+  </a>
+
+  <div class="sidebar-bottom">
+    <div class="user-chip">
+      <div class="user-avatar" id="avatarInitials">?</div>
+      <div class="user-info">
+        <div class="user-name" id="userName">Guest</div>
+        <div class="user-role">Customer</div>
+      </div>
+    </div>
+    <button class="logout-btn" onclick="logout()">← Sign out</button>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="page-header">
+    <h1>Good day, <span id="greetName">there</span> 👋</h1>
+    <p>What do you need done today?</p>
+  </div>
+
+  <div class="cta-bar">
+    <a href="post-task.html" class="btn-primary">➕ Post a Task</a>
+    <a href="browse-tasks.html" class="btn-outline">🔍 Browse Taskers</a>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Tasks Posted</div>
+      <div class="stat-value" id="tasksPosted">0</div>
+      <div class="stat-sub">Since joining</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Tasks Completed</div>
+      <div class="stat-value" id="tasksCompleted">0</div>
+      <div class="stat-sub">All time</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Spent</div>
+      <div class="stat-value" id="totalSpent">₦0</div>
+      <div class="stat-sub">Across all tasks</div>
+    </div>
+  </div>
+
+  <!-- SERVICE CARDS — FIX #3: Each links to browse-tasks.html with a category filter -->
+  <div class="section-hdr">
+    <h2>Browse by Service</h2>
+    <a href="browse-tasks.html">View all →</a>
+  </div>
+  <div class="services-grid">
+    <a href="browse-tasks.html?category=cleaning" class="service-card">
+      <div class="service-icon">🧹</div>
+      <div class="service-name">Cleaning</div>
+      <div class="service-count">42 taskers</div>
+    </a>
+    <a href="browse-tasks.html?category=repairs" class="service-card">
+      <div class="service-icon">🔧</div>
+      <div class="service-name">Repairs</div>
+      <div class="service-count">38 taskers</div>
+    </a>
+    <a href="browse-tasks.html?category=beauty" class="service-card">
+      <div class="service-icon">💅</div>
+      <div class="service-name">Beauty</div>
+      <div class="service-count">29 taskers</div>
+    </a>
+    <a href="browse-tasks.html?category=moving" class="service-card">
+      <div class="service-icon">📦</div>
+      <div class="service-name">Moving</div>
+      <div class="service-count">21 taskers</div>
+    </a>
+    <a href="browse-tasks.html?category=delivery" class="service-card">
+      <div class="service-icon">🛵</div>
+      <div class="service-name">Delivery</div>
+      <div class="service-count">55 taskers</div>
+    </a>
+    <a href="browse-tasks.html?category=cooking" class="service-card">
+      <div class="service-icon">🍳</div>
+      <div class="service-name">Cooking</div>
+      <div class="service-count">17 taskers</div>
+    </a>
+    <a href="browse-tasks.html?category=gardening" class="service-card">
+      <div class="service-icon">🌿</div>
+      <div class="service-name">Gardening</div>
+      <div class="service-count">14 taskers</div>
+    </a>
+    <a href="browse-tasks.html?category=electrical" class="service-card">
+      <div class="service-icon">⚡</div>
+      <div class="service-name">Electrical</div>
+      <div class="service-count">18 taskers</div>
+    </a>
+  </div>
+
+  <!-- RECENT TASKS -->
+  <div class="section-hdr" id="my-tasks">
+    <h2>Recent Tasks</h2>
+    <a href="post-task.html">Post new →</a>
+  </div>
+  <div class="tasks-list" id="tasksList">
+    <div class="empty-state">
+      <div style="font-size:2.5rem;">📋</div>
+      <p>You haven't posted any tasks yet.</p>
+      <a href="post-task.html" class="btn-primary" style="margin-top:16px;display:inline-flex;">Post your first task →</a>
+    </div>
+  </div>
+</main>
+
+<script>
+  // Auth guard — redirect to login if not signed in
+  const raw = localStorage.getItem('st_currentUser');
+  if (!raw) {
+    window.location.href = 'login.html';
+  } else {
+    const user = JSON.parse(raw);
+    // Redirect taskers away
+    if (user.role === 'tasker') window.location.href = 'tasker-dashboard.html';
+
+    document.getElementById('greetName').textContent = user.firstName || 'there';
+    document.getElementById('userName').textContent  = user.firstName + ' ' + (user.lastName || '');
+    document.getElementById('avatarInitials').textContent = (user.firstName[0] || '') + (user.lastName ? user.lastName[0] : '');
+
+    // Load user tasks from localStorage
+    const allTasks = JSON.parse(localStorage.getItem('st_tasks') || '[]');
+    const myTasks  = allTasks.filter(t => t.userEmail === user.email);
+
+    document.getElementById('tasksPosted').textContent    = myTasks.length;
+    document.getElementById('tasksCompleted').textContent = myTasks.filter(t => t.status === 'done').length;
+    const spent = myTasks.filter(t => t.status === 'done').reduce((s, t) => s + (Number(t.budget) || 0), 0);
+    document.getElementById('totalSpent').textContent = '₦' + spent.toLocaleString();
+
+    if (myTasks.length > 0) {
+      const list = document.getElementById('tasksList');
+      list.innerHTML = myTasks.slice().reverse().map(t => `
+        <div class="task-row">
+          <div class="task-emoji">${t.emoji || '📌'}</div>
+          <div class="task-info">
+            <div class="task-title">${t.title}</div>
+            <div class="task-meta">${t.category || 'General'} · ${new Date(t.createdAt).toLocaleDateString()}</div>
+          </div>
+          <span class="badge ${t.status || 'pending'}">${capitalize(t.status || 'pending')}</span>
+          <div class="task-price">₦${Number(t.budget || 0).toLocaleString()}</div>
+        </div>
+      `).join('');
+    }
+  }
+
+  function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function logout() {
+    localStorage.removeItem('st_currentUser');
+    window.location.href = 'index.html';
+  }
+</script>
+</body>
+</html>
