@@ -14,26 +14,53 @@ const Auth = {
       email, password,
       options: { data: { name, location, role } }
     });
-    if (error) throw error;
 
-    // Manually upsert profile — don't rely solely on DB trigger
-    if (data && data.user) {
+    // "Database error saving new user" means the auth user WAS created
+    // but the DB trigger failed. We catch it, sign the user in, then upsert profile.
+    if (error) {
+      const isDatabaseTriggerError =
+        error.message?.includes('Database error') ||
+        error.message?.includes('database error') ||
+        error.code === '500' ||
+        error.status === 500;
+
+      if (!isDatabaseTriggerError) throw error;
+
+      // User exists in auth — sign them in so we have a session
+      const { data: signInData, error: signInError } = await _sb.auth.signInWithPassword({ email, password });
+      if (signInError) throw new Error('Account created but could not sign in. Please try logging in.');
+
+      // Now upsert profile with active session
+      const userId = signInData.user.id;
       await _sb.from('profiles').upsert({
-        id: data.user.id,
-        name: name,
-        email: email,
+        id: userId, name, email,
         role: role || 'customer',
         location: location || '',
-        bio: '',
-        skills: [],
-        rating: 0,
-        jobs_completed: 0,
-        verified: false,
-        banned: false
-      }, { onConflict: 'id' }).then(({ error: pe }) => {
-        if (pe) console.warn('Profile upsert:', pe.message);
-      });
+        bio: '', skills: [], rating: 0,
+        jobs_completed: 0, verified: false, banned: false
+      }, { onConflict: 'id' });
+
+      return signInData;
     }
+
+    // Normal path: auth.signUp succeeded — now upsert profile
+    if (data && data.user) {
+      // Sign in immediately to get an active session for RLS
+      const { data: signInData } = await _sb.auth.signInWithPassword({ email, password });
+      const userId = (signInData?.user || data.user).id;
+
+      const { error: pe } = await _sb.from('profiles').upsert({
+        id: userId, name, email,
+        role: role || 'customer',
+        location: location || '',
+        bio: '', skills: [], rating: 0,
+        jobs_completed: 0, verified: false, banned: false
+      }, { onConflict: 'id' });
+
+      if (pe) console.warn('Profile upsert note:', pe.message);
+      return signInData || data;
+    }
+
     return data;
   },
   async signIn({ email, password }) {

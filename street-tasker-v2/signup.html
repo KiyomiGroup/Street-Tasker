@@ -6,6 +6,8 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
   
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
 /* ============================================================
    STREET TASKER — Global Design System
    ============================================================ */
@@ -483,16 +485,27 @@ document.getElementById('signupForm').addEventListener('submit', async e => {
   }
 
   try {
-    await Auth.signUp({ email, password, name, location, role });
-    // Update skills if tasker
+    const result = await Auth.signUp({ email, password, name, location, role });
+    // Update skills if tasker — user is now signed in
     if (role === 'tasker' && selectedSkills.length) {
       const user = await Auth.getUser();
-      if (user) await DB.updateProfile(user.id, { skills: selectedSkills });
+      if (user) {
+        await DB.updateProfile(user.id, { skills: selectedSkills }).catch(e => console.warn(e));
+      }
     }
     window.location.href = 'dashboard.html';
   } catch(err) {
     errBanner.style.display = 'block';
-    document.getElementById('errorMsg').textContent = err.message || 'Sign up failed. Please try again.';
+    // Give a friendly message instead of raw Supabase errors
+    let msg = err.message || 'Sign up failed. Please try again.';
+    if (msg.includes('already registered') || msg.includes('already been registered')) {
+      msg = 'This email is already registered. Try signing in instead.';
+    } else if (msg.includes('Database error') || msg.includes('database error')) {
+      msg = 'A server error occurred. Please try again in a moment.';
+    } else if (msg.includes('Password should be')) {
+      msg = 'Password must be at least 6 characters.';
+    }
+    document.getElementById('errorMsg').textContent = msg;
     btn.disabled = false; btn.textContent = 'Create Account';
   }
 });
