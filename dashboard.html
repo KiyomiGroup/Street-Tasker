@@ -4,8 +4,9 @@
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Dashboard — Street Tasker</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>">
-  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Instrument+Sans:ital,wght@0,400;0,500;0,600&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
 /* ============================================================
    STREET TASKER — Global Design System
    ============================================================ */
@@ -26,7 +27,7 @@
   --shadow-brand:0 8px 24px rgba(255,92,40,.3);
   --r4:4px; --r8:8px; --r12:12px; --r18:18px; --r28:28px; --rfull:9999px;
   --nav-h:68px; --sidebar-w:256px; --max-w:1280px;
-  --fd:'Syne',sans-serif; --fb:'Instrument Sans',sans-serif;
+  --fd:'Poppins',sans-serif; --fb:'Poppins',sans-serif;
   --ease:cubic-bezier(.4,0,.2,1);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -370,7 +371,7 @@ select.form-input{cursor:pointer}
           </div>
           <div class="card">
             <h4 style="margin-bottom:16px">Quick Actions</h4>
-            <div style="display:flex;flex-direction:column;gap:10px">
+            <div style="display:flex;flex-direction:column;gap:10px" id="quickActions">
               <a href="post-task.html" class="btn btn-brand btn-full">+ Post a New Task</a>
               <a href="browse-tasks.html" class="btn btn-outline btn-full">Browse Available Tasks</a>
               <a href="profile.html" class="btn btn-outline btn-full" id="viewProfileBtn">View My Profile →</a>
@@ -468,22 +469,51 @@ function showTab(name) {
 async function init() {
   currentUser = await Auth.requireAuth();
   if (!currentUser) return;
+
+  // Try to get profile; if missing, create it from auth metadata
   profile = await DB.getProfile(currentUser.id).catch(() => null);
+  if (!profile) {
+    const meta = currentUser.user_metadata || {};
+    const fallback = {
+      id: currentUser.id,
+      name: meta.name || currentUser.email?.split('@')[0] || 'User',
+      email: currentUser.email || '',
+      role: meta.role || 'customer',
+      location: meta.location || '',
+      bio: '', skills: [], rating: 0, jobs_completed: 0, verified: false, banned: false
+    };
+    await _sb.from('profiles').upsert(fallback, { onConflict: 'id' });
+    profile = fallback;
+  }
   selectedSkills = profile?.skills || [];
 
+  const isTasker = profile?.role === 'tasker';
   document.getElementById('welcomeMsg').textContent = `Welcome back, ${profile?.name || 'there'} 👋`;
-  document.getElementById('welcomeSub').textContent = profile?.role === 'tasker' ? 'Browse tasks and manage your applications' : 'Manage your posted tasks and find taskers';
+  document.getElementById('welcomeSub').textContent = isTasker
+    ? 'Browse tasks and manage your applications'
+    : 'Post tasks and find trusted taskers near you';
   document.getElementById('navActions').innerHTML = `<div class="nav-user" onclick="showTab('profile')">${Utils.avatar(profile,'xs')}<span class="nav-user-name">${profile?.name||'Me'}</span></div><button class="btn btn-ghost btn-sm" onclick="Auth.signOut()">Sign out</button>`;
   document.getElementById('sidebarUser').innerHTML = `<div style="display:flex;align-items:center;gap:10px">${Utils.avatar(profile,'sm')}<div><div style="font-weight:700;font-size:.875rem">${Utils.sanitize(profile?.name||'')}</div><div style="font-size:.75rem;color:var(--mist);text-transform:capitalize">${profile?.role||''}</div></div></div>`;
   document.getElementById('viewProfileBtn').href = `profile.html?id=${currentUser.id}`;
   document.getElementById('mobileProfileLink').href = `profile.html?id=${currentUser.id}`;
 
+  // Show Applications tab only for taskers
+  if (isTasker) {
+    document.getElementById('sb-applications').style.display = 'flex';
+  } else {
+    document.getElementById('sb-applications').style.display = 'none';
+  }
+
+  // Role-specific quick actions
+  if (isTasker) {
+    document.getElementById('quickActions').innerHTML = `
+      <a href="browse-tasks.html" class="btn btn-brand btn-full">🔍 Browse Tasks</a>
+      <a href="dashboard.html" class="btn btn-outline btn-full" onclick="showTab('applications');return false;">My Applications</a>
+      <a href="profile.html" class="btn btn-outline btn-full" id="viewProfileBtn">View My Profile →</a>`;
+  }
+
   loadOverview();
   loadNotifCount();
-
-  if (profile?.role === 'tasker') {
-    document.getElementById('sb-applications').style.display = 'flex';
-  }
   subscribeNotifs();
 }
 
